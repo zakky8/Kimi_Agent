@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      target: backend
+    container_name: trading-agent-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - HOST=0.0.0.0
+      - PORT=8000
+      - WEBSOCKET_PORT=8001
+    env_file:
+      - backend/.env
+    volumes:
+      - ./backend/logs:/app/backend/logs
+      - ./backend/data:/app/backend/data
+    restart: unless-stopped
+    networks:
+      - trading-network
+
+  frontend:
+    build:
+      context: .
+      target: frontend-builder
+    container_name: trading-agent-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+      - VITE_WS_URL=ws://localhost:8001
+    command: npm run dev -- --host
+    restart: unless-stopped
+    networks:
+      - trading-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: trading-agent-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - trading-network
+
+networks:
+  trading-network:
+    driver: bridge
