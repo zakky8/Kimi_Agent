@@ -177,8 +177,8 @@ trading-agent-pro-v2/
 
 2. **Access the application**
    - Frontend: http://localhost
-   - Backend API: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
+   - Backend API: http://localhost:8001
+   - API Docs: http://localhost:8001/docs
 
 ## ⚙️ Configuration
 
@@ -329,8 +329,8 @@ rm data/telegram_session.session
 
 ### Port Already in Use
 ```bash
-# Find and kill process on port 8000
-lsof -ti:8000 | xargs kill -9
+# Find and kill process on port 8001
+lsof -ti:8001 | xargs kill -9
 ```
 
 ## 📈 Roadmap
