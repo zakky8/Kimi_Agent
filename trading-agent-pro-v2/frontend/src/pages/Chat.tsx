@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
+import ReactMarkdown from 'react-markdown'
 
 interface Message {
   id: string
@@ -330,7 +331,9 @@ How can I assist you today?`,
               ? 'bg-blue-600 text-white'
               : 'bg-slate-800 text-slate-200'
               }`}>
-              <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+              <div className="text-sm prose prose-invert max-w-none">
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
 
               {message.data && (
                 <div className="mt-2 pt-2 border-t border-slate-700">

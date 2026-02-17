@@ -303,11 +303,17 @@ async def chat_message(request: ChatMessageRequest):
         if settings.OPENROUTER_API_KEY or settings.GEMINI_API_KEY:
             try:
                 system_prompt = (
-                    f"You are an expert AI trading assistant provided by 'AI Trading Agent Pro'. "
-                    f"\n\n{market_context}\n\n"
-                    f"Perform a professional technical analysis on {target_symbol} based on this data. "
-                    f"If the data is valid, use it to generate a Buy/Sell/Hold signal with entry, stop-loss, and take-profit levels. "
-                    f"Format the response in Markdown."
+                    f"You are the high-performance analysis engine of 'AI Trading Agent Pro v2'. "
+                    f"Your task is to provide strict, data-driven market intelligence for {target_symbol}.\n\n"
+                    f"### CURRENT MARKET DATA\n"
+                    f"{market_context}\n\n"
+                    f"### ANALYSIS REQUIREMENTS\n"
+                    f"1. **Primary Signal**: Clearly state Buy, Sell, or Neutral.\n"
+                    f"2. **Trade Levels**: Provide exact Entry, Stop-Loss, and Take-Profit based on the current price ({real_data.get('price', 'N/A')}).\n"
+                    f"3. **SMC Context**: Mention Order Blocks, FVG, and Market Structure if applicable.\n"
+                    f"4. **Risk/Reward**: Calculate a clear R:R ratio.\n\n"
+                    f"Format the response using professional Markdown with clear headers and bullet points. "
+                    f"Be concise, objective, and avoid generic financial advice."
                 )
                 
                 ai_response = "AI Analysis Failed."
