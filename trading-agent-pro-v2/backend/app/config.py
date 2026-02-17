@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "sqlite:///./data/trading_agent.db"
+    TIMESCALEDB_URL: str = "postgresql+asyncpg://kimi:kimi_dev_pass@localhost:5432/kimi_agent"
     REDIS_URL: str = "redis://localhost:6379/0"
+    KAFKA_BROKERS: str = "localhost:9092"
     
     # AI Providers (Free Tiers)
     OPENROUTER_API_KEY: Optional[str] = None
@@ -42,6 +44,7 @@ class Settings(BaseSettings):
     BINANCE_API_KEY: Optional[str] = None
     BINANCE_API_SECRET: Optional[str] = None
     BINANCE_TESTNET: bool = True
+    
     
     ALPHA_VANTAGE_API_KEY: Optional[str] = None
     

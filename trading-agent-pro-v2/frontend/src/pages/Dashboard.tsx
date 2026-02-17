@@ -14,6 +14,10 @@ import {
   Brain,
   RefreshCw
 } from 'lucide-react';
+import AgentStatusPanel from '../components/AgentStatusPanel';
+import PerformancePanel from '../components/PerformancePanel';
+import MistakeLog from '../components/MistakeLog';
+import EvolutionLog from '../components/EvolutionLog';
 
 const API_URL = '/api/v1';
 
@@ -213,8 +217,8 @@ export default function Dashboard() {
                 <p className="text-slate-400 text-sm">{stat.label}</p>
                 <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
                 <p className={`text-sm mt-1 ${stat.change === 'Profit' || stat.change === 'Running' || stat.change === 'Streaming' || stat.change === 'Today'
-                    ? 'text-green-400'
-                    : stat.change === 'Loss' ? 'text-red-400' : 'text-slate-400'
+                  ? 'text-green-400'
+                  : stat.change === 'Loss' ? 'text-red-400' : 'text-slate-400'
                   }`}>
                   {stat.change}
                 </p>
@@ -361,16 +365,16 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* AI Agent status */}
+      {/* AI Agent status banner */}
       <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-2xl p-6">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
             <Brain className="w-7 h-7 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-white">AI Trading Agent</h3>
+            <h3 className="text-lg font-semibold text-white">Kimi Agent v3.0</h3>
             <p className="text-slate-400">
-              {healthData ? `${healthData.active_agents || 0} agents active` : 'Monitoring markets 24/7'} • Analyzing price action • Detecting liquidity zones
+              5-agent consensus • Self-improving ML • 40+ indicators • Automated risk management
             </p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-xl">
@@ -378,6 +382,16 @@ export default function Dashboard() {
             <span className="text-green-400 text-sm font-medium">Active</span>
           </div>
         </div>
+      </div>
+
+      {/* Intelligence Panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <AgentStatusPanel />
+        <PerformancePanel />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MistakeLog />
+        <EvolutionLog />
       </div>
     </div>
   );
