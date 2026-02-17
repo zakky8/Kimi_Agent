@@ -8,9 +8,11 @@ from typing import List, Optional, Dict, Any
 import asyncio
 from openai import AsyncOpenAI
 import logging
+import pandas as pd
 
 from datetime import datetime
 from ..ai_engine.agent import get_swarm, AIAgent, AgentStatus
+from ..ai_engine.signal_generator import SignalGenerator
 from ..mt5_client import MT5Client
 from ..config import settings # Assuming settings from config.py
 from ..core.chat_history_manager import chat_history_manager
@@ -284,19 +286,47 @@ async def chat_message(request: ChatMessageRequest):
             "data": None
         }
     
-    # analyze (Basic Mock Analysis unless AI key present)
-    # analyze (Enhanced with Real-Time Data & AI)
+    # analyze (Enhanced with SMC & AI)
     elif msg.startswith("analyze") or msg.startswith("analysis"):
         parts = msg.split()
         target_symbol = parts[1].upper() if len(parts) > 1 else symbol
         
-        # 1. Fetch Real-Time Data
+        # 1. Fetch Real-Time Data (Indicators + OHLCV)
         real_data = await get_market_data(target_symbol)
         
+        smc_context = ""
+        try:
+            # Get OHLCV for SMC Analysis
+            swarm = get_swarm_instance()
+            if swarm and hasattr(swarm.mt5, 'get_rates'):
+                rates = await swarm.mt5.get_rates(target_symbol, timeframe='M15', count=100)
+                if rates:
+                    df = pd.DataFrame(rates)
+                    df['time'] = pd.to_datetime(df['time'])
+                    df.set_index('time', inplace=True)
+                    
+                    sg = SignalGenerator()
+                    obs = sg.smc.identify_order_blocks(df)
+                    fvgs = sg.smc.identify_fair_value_gaps(df)
+                    ms = sg.smc.determine_market_structure(df)
+                    
+                    recent_ob = obs[-1] if obs else None
+                    recent_fvg = fvgs[-1] if fvgs else None
+                    
+                    smc_context = (
+                        f"### SMC TECHNICAL CONTEXT\n"
+                        f"- **Market Structure**: {ms.value if ms else 'Unknown'}\n"
+                        f"- **Recent Order Block**: {f'{recent_ob.direction.value} at {recent_ob.price_low}-{recent_ob.price_high}' if recent_ob else 'None detected'}\n"
+                        f"- **Recent FVG**: {f'{recent_fvg.direction.value} gap at {recent_fvg.price_low}-{recent_fvg.price_high}' if recent_fvg else 'None detected'}\n"
+                    )
+        except Exception as smc_err:
+            logger.error(f"SMC Analysis Context Error: {smc_err}")
+
         market_context = ""
         if real_data:
             market_context = (
-                f"**Real-Time Data for {target_symbol} ({real_data.get('source')}):**\n"
+                f"### CURRENT MARKET METRICS\n"
+                f"• Symbol: {target_symbol} ({real_data.get('source')})\n"
                 f"• Price: {real_data['price']}\n"
                 f"• RSI (14): {real_data.get('rsi', 'N/A')}\n"
                 f"• MACD: {real_data.get('macd', 'N/A')}\n"
@@ -310,12 +340,12 @@ async def chat_message(request: ChatMessageRequest):
                 system_prompt = (
                     f"You are the high-performance analysis engine of 'AI Trading Agent Pro v2'. "
                     f"Your task is to provide strict, data-driven market intelligence for {target_symbol}.\n\n"
-                    f"### CURRENT MARKET DATA\n"
+                    f"{smc_context}\n"
                     f"{market_context}\n\n"
                     f"### ANALYSIS REQUIREMENTS\n"
                     f"1. **Primary Signal**: Clearly state Buy, Sell, or Neutral.\n"
                     f"2. **Trade Levels**: Provide exact Entry, Stop-Loss, and Take-Profit based on the current price ({real_data.get('price', 'N/A')}).\n"
-                    f"3. **SMC Context**: Mention Order Blocks, FVG, and Market Structure if applicable.\n"
+                    f"3. **SMC Reasoning**: Explain how the Market Structure and OB/FVG support your decision.\n"
                     f"4. **Risk/Reward**: Calculate a clear R:R ratio.\n\n"
                     f"Format the response using professional Markdown with clear headers and bullet points. "
                     f"Be concise, objective, and avoid generic financial advice."
