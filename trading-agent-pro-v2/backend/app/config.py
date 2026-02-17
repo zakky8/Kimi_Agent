@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "sqlite:///./data/trading_agent.db"
-    TIMESCALEDB_URL: str = "postgresql+asyncpg://kimi:kimi_dev_pass@localhost:5432/kimi_agent"
+    TIMESCALEDB_URL: str = "postgresql+asyncpg://kimi:changeme@localhost:5432/kimi_agent"  # Override via POSTGRES_PASSWORD in .env
     REDIS_URL: str = "redis://localhost:6379/0"
     KAFKA_BROKERS: str = "localhost:9092"
     
@@ -118,20 +118,26 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Load persisted settings
+import json
+from pathlib import Path
+
+# Load persisted settings (inline replacement for deleted core.settings_manager)
 try:
-    from .core.settings_manager import settings_manager
-    persisted = settings_manager.load_settings()
-    
-    # Update settings with persisted values
-    for key, value in persisted.items():
-        if hasattr(settings, key.upper()):
-            setattr(settings, key.upper(), value)
-        elif hasattr(settings, key.lower()):
-             setattr(settings, key.lower(), value)
-            
-    # Special handling for list fields if stored as strings (e.g. from env)
-    if isinstance(settings.TELEGRAM_CHANNELS, str):
-        settings.TELEGRAM_CHANNELS = settings.TELEGRAM_CHANNELS.split(',')
+    _SETTINGS_PATH = Path("./data/settings.json")
+    if _SETTINGS_PATH.exists():
+        persisted = json.loads(_SETTINGS_PATH.read_text())
+        
+        # Update settings with persisted values
+        for key, value in persisted.items():
+            if hasattr(settings, key.upper()):
+                setattr(settings, key.upper(), value)
+            elif hasattr(settings, key.lower()):
+                setattr(settings, key.lower(), value)
+                
+        # Special handling for list fields if stored as strings
+        if isinstance(settings.TELEGRAM_CHANNELS, str):
+            settings.TELEGRAM_CHANNELS = settings.TELEGRAM_CHANNELS.split(',')
+
 
 except Exception as e:
     print(f"Error loading persisted settings: {e}")
