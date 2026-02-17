@@ -14,7 +14,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 
-from .signal_generator import SignalGenerator, TradingSignal
+from .signal_generator import SignalGenerator, TradingSignal, OrderBlockType
+from ..core.trade_history_manager import trade_history_manager
 # Assuming these exist or will be created
 # from ..mt5_client import MT5Client 
 # Need to check where MT5Client is actually located in the folder structure
@@ -29,6 +30,7 @@ class AgentStatus(Enum):
     ERROR = "error"
     STOPPED = "stopped"
     CIRCUIT_BREAKER = "circuit_breaker"
+    EVOLVING = "evolving"
 
 @dataclass
 class AgentMemory:
@@ -51,6 +53,10 @@ class AgentMemory:
         self.trade_history.append(trade)
         self.daily_trades += 1
         self.daily_pnl += trade.get('profit', 0)
+        
+        # Persist to history manager
+        trade_history_manager.save_trade(trade)
+        
         if len(self.trade_history) > 1000:
             self.trade_history.pop(0)
     
@@ -112,6 +118,12 @@ class AIAgent:
         self.min_confidence = config.get('min_confidence', 0.85)
         self.max_daily_loss = config.get('max_daily_loss', -0.02)  # -2%
         self.max_consecutive_errors = config.get('max_consecutive_errors', 5)
+        
+        # Evolution Knowledge Base
+        self.knowledge = {
+            'failed_patterns': [],  # Summaries of technical conditions during losses
+            'last_evolution': None
+        }
         
         logger.info(f"Agent {agent_id} initialized for {symbol}")
     
@@ -251,11 +263,10 @@ class AIAgent:
     
     async def _generate_signals(self, df: pd.DataFrame) -> Optional[TradingSignal]:
         """
-        Generate trading signals using SMC analysis
-        FIXED: Replaced placeholder 'pass' with full implementation
+        Generate trading signals using SMC analysis with Evolution filtering
         """
         try:
-            # Technical analysis
+            # 1. Technical analysis
             signal = self.signal_generator.generate_signal(
                 symbol=self.symbol,
                 df=df,
@@ -265,7 +276,10 @@ class AIAgent:
             if signal is None:
                 return None
             
-            # Fundament analysis logic can be added here
+            # 2. Evolution Filtering: Check if setup matches known mistakes
+            if await self._is_repeating_mistake(signal, df):
+                logger.warning(f"Agent {self.agent_id} blocked potential repeating mistake on {self.symbol}")
+                return None
             
             # Store in memory
             self.memory.add_signal(signal)
@@ -284,6 +298,58 @@ class AIAgent:
         except Exception as e:
             logger.error(f"Error generating signals for {self.symbol}: {e}")
             return None
+
+    async def _is_repeating_mistake(self, signal: TradingSignal, df: pd.DataFrame) -> bool:
+        """Heuristic check against known failure patterns"""
+        if not self.knowledge['failed_patterns']:
+            return False
+            
+        # Example logic: If we lost multiple times in a specific market structure
+        # or near a specific OB type, block it.
+        # This is a simplified implementation of "learning"
+        current_structure = self.signal_generator.smc.determine_market_structure(df)
+        
+        for pattern in self.knowledge['failed_patterns']:
+            if pattern.get('structure') == current_structure.value and \
+               pattern.get('direction') == signal.direction:
+                return True
+        return False
+
+    async def evolve(self):
+        """Analyze past mistakes and update knowledge base"""
+        if self.status == AgentStatus.EVOLVING:
+            return
+            
+        prev_status = self.status
+        self.status = AgentStatus.EVOLVING
+        logger.info(f"Agent {self.agent_id} entering evolution phase...")
+        
+        try:
+            mistakes = trade_history_manager.get_recent_mistakes(self.agent_id)
+            if not mistakes:
+                logger.info(f"Agent {self.agent_id} has no mistakes to learn from.")
+                return
+
+            new_patterns = []
+            for m in mistakes[-5:]: # Analyze last 5 losses
+                # In a real app, this would use LLM to summarize the context
+                # Here we use technical metadata if available
+                metadata = m.get('metadata', {})
+                if metadata:
+                    new_patterns.append({
+                        'structure': metadata.get('market_structure'),
+                        'direction': m.get('direction'),
+                        'timestamp': datetime.utcnow().isoformat()
+                    })
+            
+            self.knowledge['failed_patterns'] = new_patterns
+            self.knowledge['last_evolution'] = datetime.utcnow().isoformat()
+            logger.info(f"Agent {self.agent_id} evolution complete. Knowledge base updated.")
+            
+        except Exception as e:
+            logger.error(f"Error during agent evolution: {e}")
+        finally:
+            self.status = prev_status
     
     async def _execute_signal(self, signal: TradingSignal):
         """Execute trade via ExecutionManager"""

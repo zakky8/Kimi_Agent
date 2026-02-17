@@ -94,6 +94,17 @@ class SystemScheduler:
             logger.warning("MT5 disconnected, attempting reconnect...")
             await self.mt5.connect()
 
+    async def _evolve_agents(self):
+        """Trigger evolution cycle for all active agents"""
+        swarm = get_swarm()
+        if not swarm:
+            return
+            
+        logger.info("Starting global agent evolution cycle...")
+        for agent_id, agent in swarm.agents.items():
+            if agent.is_running:
+                await agent.evolve()
+
 
 # Global instance
 _scheduler_instance = None
