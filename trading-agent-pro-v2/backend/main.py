@@ -19,6 +19,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from app.config import settings
 from app.api.routes import router
+from app.api.market_data import router as market_router
+from app.api.dashboard_data import router as dashboard_router
 from app.websocket.server import get_websocket_server
 from app.ai_engine.agent import get_agent
 
@@ -110,6 +112,8 @@ app.mount("/uploads", StaticFiles(directory="./data/uploads"), name="uploads")
 
 # Include API routes
 app.include_router(router, prefix="/api/v1")
+app.include_router(market_router, prefix="/api/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
 
 
 @app.get("/")

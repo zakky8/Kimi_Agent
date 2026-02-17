@@ -110,8 +110,29 @@ class Settings(BaseSettings):
         extra = "ignore"
 
 
+
 # Global settings instance
 settings = Settings()
+
+# Load persisted settings
+try:
+    from .core.settings_manager import settings_manager
+    persisted = settings_manager.load_settings()
+    
+    # Update settings with persisted values
+    for key, value in persisted.items():
+        if hasattr(settings, key.upper()):
+            setattr(settings, key.upper(), value)
+        elif hasattr(settings, key.lower()):
+             setattr(settings, key.lower(), value)
+            
+    # Special handling for list fields if stored as strings (e.g. from env)
+    if isinstance(settings.TELEGRAM_CHANNELS, str):
+        settings.TELEGRAM_CHANNELS = settings.TELEGRAM_CHANNELS.split(',')
+
+except Exception as e:
+    print(f"Error loading persisted settings: {e}")
+
 
 
 # Trading Pairs Configuration

@@ -66,7 +66,8 @@ app.add_middleware(
 )
 
 # Include routes
-app.include_router(routes.router)
+# Include routes with version prefix
+app.include_router(routes.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

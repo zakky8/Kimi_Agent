@@ -8,7 +8,7 @@ import {
   User,
   Loader2
 } from 'lucide-react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 
 interface Message {
@@ -20,7 +20,7 @@ interface Message {
   data?: any
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1'
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([
@@ -62,6 +62,71 @@ How can I assist you today?`,
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Fetch settings to check API Key status
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const res = await axios.get(`${API_URL}/settings/current`)
+      return res.data
+    }
+  })
+
+  // Update welcome message with actual API key status
+  useEffect(() => {
+    if (settings && messages.length > 0 && messages[0].id === 'welcome') {
+      const hasKey = !!(settings.openrouter_api_key || settings.gemini_api_key || settings.anthropic_api_key || settings.groq_api_key || settings.openai_api_key)
+      const statusIcon = hasKey ? '✅ Configured' : '❌ Not Set'
+
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === 'welcome') {
+          return {
+            ...msg,
+            content: msg.content.replace(/Currently configured API Key: .*/, `Currently configured API Key: ${statusIcon}`)
+          }
+        }
+        return msg
+      }))
+    }
+  }, [settings])
+
+  // Fetch chat history
+  const { data: chatHistory } = useQuery({
+    queryKey: ['chat', 'history'],
+    queryFn: async () => {
+      const res = await axios.get(`${API_URL}/chat/history`)
+      return res.data as Message[] // API returns ISO strings for dates
+    },
+    refetchOnWindowFocus: false
+  })
+
+  // Fetch active agents to restore monitoring state
+  const { data: activeAgents } = useQuery({
+    queryKey: ['agents'],
+    queryFn: async () => {
+      const res = await axios.get(`${API_URL}/agents`)
+      return res.data
+    },
+    refetchInterval: 5000
+  })
+
+  // Restore history
+  useEffect(() => {
+    if (chatHistory && chatHistory.length > 0) {
+      const parsedHistory = chatHistory.map(msg => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp)
+      }))
+      setMessages(parsedHistory)
+    }
+  }, [chatHistory])
+
+  // Restore monitoring status
+  useEffect(() => {
+    if (activeAgents && activeAgents.length > 0) {
+      setIsMonitoring(true)
+    }
+  }, [activeAgents])
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -224,8 +289,8 @@ How can I assist you today?`,
             onClick={() => toggleMonitoringMutation.mutate(isMonitoring ? 'stop' : 'start')}
             disabled={toggleMonitoringMutation.isPending}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${isMonitoring
-                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+              ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+              : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
               }`}
           >
             {toggleMonitoringMutation.isPending ? (
@@ -262,8 +327,8 @@ How can I assist you today?`,
             </div>
 
             <div className={`max-w-[80%] rounded-lg p-3 ${message.role === 'user'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-800 text-slate-200'
+              ? 'bg-blue-600 text-white'
+              : 'bg-slate-800 text-slate-200'
               }`}>
               <div className="whitespace-pre-wrap text-sm">{message.content}</div>
 

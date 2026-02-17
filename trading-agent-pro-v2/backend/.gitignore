@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+env/
+venv/
+venv_info.txt
+.env
+data/*.json
+!data/settings.json.example
+logs/
+*.log
+.vscode/

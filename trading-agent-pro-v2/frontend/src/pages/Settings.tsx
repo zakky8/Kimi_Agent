@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Key,
   Save,
@@ -14,7 +14,7 @@ import {
 import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1'
 
 interface SettingsSection {
   id: string
@@ -72,13 +72,23 @@ export default function Settings() {
   })
 
   // Fetch current settings
-  const { isLoading } = useQuery({
+  const { data: currentSettings, isLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
       const response = await axios.get(`${API_URL}/settings/current`)
       return response.data
-    }
+    },
   })
+
+  // Update state when settings are loaded
+  useEffect(() => {
+    if (currentSettings) {
+      setSettings(prev => ({
+        ...prev,
+        ...currentSettings
+      }))
+    }
+  }, [currentSettings])
 
   // Update settings mutation
   const updateSettingsMutation = useMutation({
@@ -128,8 +138,8 @@ export default function Settings() {
           onClick={handleSave}
           disabled={updateSettingsMutation.isPending}
           className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${saved
-              ? 'bg-bull text-white'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            ? 'bg-bull text-white'
+            : 'bg-primary text-primary-foreground hover:bg-primary/90'
             }`}
         >
           {updateSettingsMutation.isPending ? (
@@ -156,8 +166,8 @@ export default function Settings() {
               key={section.id}
               onClick={() => setActiveSection(section.id)}
               className={`w-full flex items-center gap-3 p-4 rounded-lg text-left transition-colors ${activeSection === section.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-accent hover:bg-accent/80'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-accent hover:bg-accent/80'
                 }`}
             >
               <section.icon className="w-5 h-5" />
@@ -227,6 +237,22 @@ function AIProvidersSettings({ settings, setSettings }: any) {
         <p className="text-muted-foreground">
           Configure AI model APIs for analysis and chat. At least one provider is required.
         </p>
+
+        <div className="p-4 bg-accent/50 rounded-lg border border-indigo-500/30">
+          <label className="block text-sm font-medium mb-2">Default AI Model</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={settings.default_ai_model}
+              onChange={(e) => setSettings({ ...settings, default_ai_model: e.target.value })}
+              placeholder="e.g. openrouter/anthropic/claude-3-opus"
+              className="flex-1 px-4 py-2 bg-background rounded-lg border border-border outline-none focus:border-primary"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Format: provider/model (e.g. <code>openrouter/anthropic/claude-3-haiku</code> or <code>google/gemini-pro</code>)
+          </p>
+        </div>
       </div>
 
       <div className="space-y-4">
