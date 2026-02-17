@@ -5,6 +5,7 @@ High-End Automated Trading System with Full System Control
 import asyncio
 import logging
 import sys
+from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -46,39 +47,43 @@ async def lifespan(app: FastAPI):
     global ws_server, ai_agent
     
     # Startup
-    logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    
-    # Initialize AI Agent
-    ai_agent = get_agent()
-    logger.info("✅ AI Agent initialized")
-    
-    # Start WebSocket server
-    ws_server = get_websocket_server()
-    await ws_server.start()
-    logger.info("✅ WebSocket server started")
+    try:
+        logger.info(f"[START] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+        
+        # Initialize AI Agent
+        ai_agent = get_agent()
+        logger.info("[OK] AI Agent initialized")
+        
+        # Start WebSocket server
+        ws_server = get_websocket_server()
+        await ws_server.start()
+        logger.info("[OK] WebSocket server started")
+    except Exception as e:
+        logger.error(f"CRITICAL: Startup failed: {str(e)}")
+        logger.exception(e)
+        raise
     
     # Create data directories
     Path("./data").mkdir(exist_ok=True)
     Path("./data/uploads").mkdir(exist_ok=True)
     Path("./data/cache").mkdir(exist_ok=True)
     
-    logger.info("✅ Application ready")
-    logger.info(f"📊 Monitoring {len(settings.DEFAULT_PAIRS)} trading pairs")
-    logger.info(f"🤖 AI Providers: {list(ai_agent.clients.keys())}")
+    logger.info("[READY] Application ready")
+    logger.info(f"[INFO] Monitoring {len(settings.DEFAULT_PAIRS)} trading pairs")
     
     yield
     
     # Shutdown
-    logger.info("🛑 Shutting down...")
+    logger.info("[STOP] Shutting down...")
     
     if ws_server:
         await ws_server.stop()
     
-    # Stop AI agent if monitoring
-    if ai_agent and ai_agent.state.value == "monitoring":
-        await ai_agent.process_command(type(ai_agent).CommandType.STOP)
+    # Stop all agents if running
+    if ai_agent:
+        await ai_agent.stop_all()
     
-    logger.info("👋 Goodbye!")
+    logger.info("[BYE] Goodbye!")
 
 
 # Create FastAPI app
@@ -126,7 +131,7 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "agent_state": ai_agent.state.value if ai_agent else "unknown"
+        "active_agents": len(ai_agent.agents) if ai_agent else 0
     }
 
 
@@ -134,13 +139,12 @@ def main():
     """Main entry point"""
     uvicorn.run(
         "main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG,
+        host="127.0.0.1",
+        port=8000,
+        reload=False,
         log_level=settings.LOG_LEVEL.lower()
     )
 
 
 if __name__ == "__main__":
-    from datetime import datetime
     main()

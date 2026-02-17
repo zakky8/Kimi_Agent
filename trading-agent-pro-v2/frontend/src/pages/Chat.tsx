@@ -1,19 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
-import { 
-  Send, 
-  Image, 
-  Play, 
-  Square, 
-  Bot, 
-  User, 
-  Loader2,
-  TrendingUp,
-  TrendingDown,
-  AlertCircle,
-  Settings,
-  Clock
+import {
+  Send,
+  Image,
+  Play,
+  Square,
+  Bot,
+  User,
+  Loader2
 } from 'lucide-react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 
 interface Message {
@@ -27,7 +22,7 @@ interface Message {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
-export function Chat() {
+export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -126,12 +121,12 @@ How can I assist you today?`,
   const analyzeImageMutation = useMutation({
     mutationFn: async () => {
       if (!selectedImage) return
-      
+
       const formData = new FormData()
       formData.append('file', selectedImage)
       formData.append('symbol', selectedSymbol)
       formData.append('timeframe', '1h')
-      
+
       const response = await axios.post(`${API_URL}/chat/analyze-image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
@@ -195,16 +190,16 @@ How can I assist you today?`,
             <Bot className="w-6 h-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-semibold">AI Trading Agent</h1>
+            <h1 className="font-semibold text-white">AI Trading Agent</h1>
             <p className="text-xs text-muted-foreground">
               {isMonitoring ? (
-                <span className="flex items-center gap-1 text-bull">
-                  <span className="w-2 h-2 rounded-full bg-bull animate-pulse" />
+                <span className="flex items-center gap-1 text-green-400">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                   Monitoring Active
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <span className="w-2 h-2 rounded-full bg-neutral" />
+                <span className="flex items-center gap-1 text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-slate-600" />
                   Standby
                 </span>
               )}
@@ -217,7 +212,7 @@ How can I assist you today?`,
           <select
             value={selectedSymbol}
             onChange={(e) => setSelectedSymbol(e.target.value)}
-            className="px-3 py-2 bg-accent rounded-lg text-sm border border-border"
+            className="px-3 py-2 bg-slate-800 rounded-lg text-sm border border-slate-700 text-white"
           >
             {['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'EURUSD', 'GBPUSD', 'XAUUSD'].map(s => (
               <option key={s} value={s}>{s}</option>
@@ -228,11 +223,10 @@ How can I assist you today?`,
           <button
             onClick={() => toggleMonitoringMutation.mutate(isMonitoring ? 'stop' : 'start')}
             disabled={toggleMonitoringMutation.isPending}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isMonitoring
-                ? 'bg-bear/20 text-bear hover:bg-bear/30'
-                : 'bg-bull/20 text-bull hover:bg-bull/30'
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${isMonitoring
+                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+              }`}
           >
             {toggleMonitoringMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -258,59 +252,56 @@ How can I assist you today?`,
             key={message.id}
             className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-              message.role === 'user' ? 'bg-accent' : 'bg-primary'
-            }`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${message.role === 'user' ? 'bg-slate-800' : 'bg-blue-600'
+              }`}>
               {message.role === 'user' ? (
-                <User className="w-4 h-4" />
+                <User className="w-4 h-4 text-white" />
               ) : (
-                <Bot className="w-4 h-4" />
+                <Bot className="w-4 h-4 text-white" />
               )}
             </div>
-            
-            <div className={`max-w-[80%] rounded-lg p-3 ${
-              message.role === 'user'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-accent'
-            }`}>
+
+            <div className={`max-w-[80%] rounded-lg p-3 ${message.role === 'user'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-200'
+              }`}>
               <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-              
+
               {message.data && (
-                <div className="mt-2 pt-2 border-t border-border/50">
+                <div className="mt-2 pt-2 border-t border-slate-700">
                   {message.type === 'command' && message.data?.pairs && (
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-slate-400">
                       Monitoring: {message.data.pairs.join(', ')}
                     </div>
                   )}
                 </div>
               )}
-              
-              <div className={`text-xs mt-1 ${
-                message.role === 'user' ? 'text-primary-foreground/60' : 'text-muted-foreground'
-              }`}>
+
+              <div className={`text-xs mt-1 ${message.role === 'user' ? 'text-blue-100' : 'text-slate-500'
+                }`}>
                 {message.timestamp.toLocaleTimeString()}
               </div>
             </div>
           </div>
         ))}
-        
+
         {sendMessageMutation.isPending && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-              <Bot className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-white" />
             </div>
-            <div className="bg-accent rounded-lg p-3">
+            <div className="bg-slate-800 rounded-lg p-3 text-white">
               <Loader2 className="w-4 h-4 animate-spin" />
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
       {/* Image Preview */}
       {selectedImage && (
-        <div className="px-4 py-2 border-t border-border bg-accent/30">
+        <div className="px-4 py-2 border-t border-slate-800 bg-slate-900/50">
           <div className="flex items-center gap-3">
             <div className="relative">
               <img
@@ -320,21 +311,21 @@ How can I assist you today?`,
               />
               <button
                 onClick={() => setSelectedImage(null)}
-                className="absolute -top-1 -right-1 w-5 h-5 bg-bear rounded-full flex items-center justify-center text-white text-xs"
+                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs"
               >
                 ×
               </button>
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium">{selectedImage.name}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm font-medium text-white">{selectedImage.name}</p>
+              <p className="text-xs text-slate-400">
                 {(selectedImage.size / 1024).toFixed(1)} KB
               </p>
             </div>
             <button
               onClick={handleAnalyzeImage}
               disabled={analyzeImageMutation.isPending}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
               {analyzeImageMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -347,11 +338,11 @@ How can I assist you today?`,
       )}
 
       {/* Input */}
-      <div className="p-4 border-t border-border bg-card/50">
+      <div className="p-4 border-t border-slate-800 bg-slate-900/50">
         <div className="flex gap-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 bg-accent rounded-lg hover:bg-accent/80 transition-colors"
+            className="p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors text-slate-400"
             title="Upload chart image"
           >
             <Image className="w-5 h-5" />
@@ -363,23 +354,23 @@ How can I assist you today?`,
             onChange={handleImageUpload}
             className="hidden"
           />
-          
+
           <div className="flex-1 relative">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Type a message or command..."
-              className="w-full px-4 py-3 bg-accent rounded-lg resize-none border border-transparent focus:border-primary outline-none"
+              className="w-full px-4 py-3 bg-slate-800 rounded-lg resize-none border border-transparent focus:border-blue-500 outline-none text-white"
               rows={1}
               style={{ minHeight: '48px', maxHeight: '120px' }}
             />
           </div>
-          
+
           <button
             onClick={handleSend}
             disabled={!input.trim() || sendMessageMutation.isPending}
-            className="p-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
             {sendMessageMutation.isPending ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -388,8 +379,8 @@ How can I assist you today?`,
             )}
           </button>
         </div>
-        
-        <p className="text-xs text-muted-foreground mt-2">
+
+        <p className="text-xs text-slate-500 mt-2">
           Try: "start monitoring", "analyze BTCUSDT", "status", "stop"
         </p>
       </div>

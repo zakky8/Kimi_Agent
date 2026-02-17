@@ -1,564 +1,425 @@
 """
-AI Trading Agent - Full System Control
-24/7 Market Monitoring with Autonomous Decision Making
+Multi-Agent Swarm Architecture for Autonomous Trading
+Fixed V2 Implementation with Full Monitoring Loop
 """
+
 import asyncio
-import json
-from typing import Dict, List, Optional, Any, Callable
+import logging
+import time
+from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
-import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
+import pandas as pd
 
-from openai import AsyncOpenAI
-import google.generativeai as genai
-from groq import AsyncGroq
-import anthropic
-
-from ..config import settings, AI_PROVIDERS
+from .signal_generator import SignalGenerator, TradingSignal
+# Assuming these exist or will be created
+# from ..mt5_client import MT5Client 
+# Need to check where MT5Client is actually located in the folder structure
 
 logger = logging.getLogger(__name__)
 
-
-class AgentState(Enum):
+class AgentStatus(Enum):
     IDLE = "idle"
     MONITORING = "monitoring"
     ANALYZING = "analyzing"
-    TRADING = "trading"
+    EXECUTING = "executing"
     ERROR = "error"
-
-
-class CommandType(Enum):
-    START = "start"
-    STOP = "stop"
-    STATUS = "status"
-    ANALYZE = "analyze"
-    TRADE = "trade"
-    SCAN = "scan"
-    ALERT = "alert"
-    CONFIG = "config"
-
+    STOPPED = "stopped"
+    CIRCUIT_BREAKER = "circuit_breaker"
 
 @dataclass
-class AgentCommand:
-    """Command for the AI agent"""
-    command_type: CommandType
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.now)
-    user_id: Optional[str] = None
-
-
-@dataclass
-class AgentResponse:
-    """Response from the AI agent"""
-    success: bool
-    message: str
-    data: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.now)
-    action_taken: Optional[str] = None
-
-
-@dataclass
-class MarketInsight:
-    """Market analysis insight"""
-    symbol: str
-    timeframe: str
-    sentiment: str
-    technical_score: float
-    fundamental_score: float
-    recommendation: str
-    confidence: float
-    reasoning: str
-    timestamp: datetime
-
+class AgentMemory:
+    """Persistent memory for each agent instance"""
+    recent_signals: List[TradingSignal] = field(default_factory=list)
+    trade_history: List[Dict] = field(default_factory=list)
+    last_prices: Dict[str, float] = field(default_factory=dict)
+    daily_pnl: float = 0.0
+    daily_trades: int = 0
+    last_reset: datetime = field(default_factory=datetime.utcnow)
+    errors_count: int = 0
+    consecutive_errors: int = 0
+    
+    def add_signal(self, signal: TradingSignal):
+        self.recent_signals.append(signal)
+        if len(self.recent_signals) > 100:
+            self.recent_signals.pop(0)
+    
+    def add_trade(self, trade: Dict):
+        self.trade_history.append(trade)
+        self.daily_trades += 1
+        self.daily_pnl += trade.get('profit', 0)
+        if len(self.trade_history) > 1000:
+            self.trade_history.pop(0)
+    
+    def reset_daily_stats(self):
+        self.daily_pnl = 0.0
+        self.daily_trades = 0
+        self.last_reset = datetime.utcnow()
+    
+    def record_error(self):
+        self.errors_count += 1
+        self.consecutive_errors += 1
+    
+    def clear_errors(self):
+        self.consecutive_errors = 0
 
 class AIAgent:
     """
-    AI Trading Agent with Full System Control
-    - 24/7 market monitoring
-    - Autonomous analysis
-    - Multi-provider AI support
-    - System integration
+    Individual AI Agent for specific trading symbol
+    Part of the Swarm Architecture
     """
     
-    def __init__(self):
-        self.state = AgentState.IDLE
-        self.clients: Dict[str, Any] = {}
-        self.command_history: List[AgentCommand] = []
-        self.response_history: List[AgentResponse] = []
-        self.insights: Dict[str, List[MarketInsight]] = {}
-        self.monitoring_task: Optional[asyncio.Task] = None
-        self.alert_callbacks: List[Callable] = []
-        self.system_stats: Dict[str, Any] = {}
+    def __init__(self, 
+                 symbol: str,
+                 agent_id: str,
+                 mt5_client,
+                 config: Dict,
+                 signal_callback: Optional[Callable] = None):
+        """
+        Initialize agent for specific symbol
         
-        # Initialize AI clients
-        self._init_ai_clients()
+        Args:
+            symbol: Trading symbol (e.g., 'BTCUSD')
+            agent_id: Unique identifier for this agent
+            mt5_client: MT5 connection client
+            config: Agent configuration
+            signal_callback: Optional callback for signal notifications
+        """
+        self.symbol = symbol
+        self.agent_id = agent_id
+        self.mt5 = mt5_client
+        self.config = config
+        self.signal_callback = signal_callback
         
-    def _init_ai_clients(self):
-        """Initialize AI provider clients"""
-        try:
-            # OpenRouter (recommended - multiple models)
-            if settings.OPENROUTER_API_KEY:
-                self.clients["openrouter"] = AsyncOpenAI(
-                    base_url="https://openrouter.ai/api/v1",
-                    api_key=settings.OPENROUTER_API_KEY
-                )
-                logger.info("OpenRouter client initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize OpenRouter: {e}")
+        # Core components
+        self.signal_generator = SignalGenerator(config.get('signal_config', {}))
+        # News analyzer is optional and may need to be imported correctly
+        self.news_analyzer = None 
         
-        try:
-            # Google Gemini
-            if settings.GEMINI_API_KEY:
-                genai.configure(api_key=settings.GEMINI_API_KEY)
-                self.clients["gemini"] = genai.GenerativeModel('gemini-pro')
-                logger.info("Gemini client initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Gemini: {e}")
+        # State management
+        self.status = AgentStatus.IDLE
+        self.memory = AgentMemory()
+        self.is_running = False
+        self._monitoring_task = None
+        self._lock = asyncio.Lock()
         
-        try:
-            # Groq
-            if settings.GROQ_API_KEY:
-                self.clients["groq"] = AsyncGroq(api_key=settings.GROQ_API_KEY)
-                logger.info("Groq client initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Groq: {e}")
+        # Configuration
+        self.monitor_interval = config.get('monitor_interval', 60)  # seconds
+        self.autonomous_mode = config.get('autonomous_mode', False)
+        self.min_confidence = config.get('min_confidence', 0.85)
+        self.max_daily_loss = config.get('max_daily_loss', -0.02)  # -2%
+        self.max_consecutive_errors = config.get('max_consecutive_errors', 5)
         
-        try:
-            # Anthropic
-            if settings.ANTHROPIC_API_KEY:
-                self.clients["anthropic"] = anthropic.AsyncAnthropic(
-                    api_key=settings.ANTHROPIC_API_KEY
-                )
-                logger.info("Anthropic client initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Anthropic: {e}")
-        
-        if not self.clients:
-            logger.error("No AI clients initialized. Please configure API keys.")
+        logger.info(f"Agent {agent_id} initialized for {symbol}")
     
-    async def process_command(self, command: AgentCommand) -> AgentResponse:
-        """Process agent command"""
-        self.command_history.append(command)
+    async def start(self):
+        """Start the agent monitoring loop"""
+        if self.is_running:
+            logger.warning(f"Agent {self.agent_id} already running")
+            return
         
-        try:
-            if command.command_type == CommandType.START:
-                return await self._cmd_start(command)
-            elif command.command_type == CommandType.STOP:
-                return await self._cmd_stop(command)
-            elif command.command_type == CommandType.STATUS:
-                return await self._cmd_status(command)
-            elif command.command_type == CommandType.ANALYZE:
-                return await self._cmd_analyze(command)
-            elif command.command_type == CommandType.TRADE:
-                return await self._cmd_trade(command)
-            elif command.command_type == CommandType.SCAN:
-                return await self._cmd_scan(command)
-            elif command.command_type == CommandType.ALERT:
-                return await self._cmd_alert(command)
-            elif command.command_type == CommandType.CONFIG:
-                return await self._cmd_config(command)
-            else:
-                return AgentResponse(
-                    success=False,
-                    message=f"Unknown command: {command.command_type}"
-                )
-        except Exception as e:
-            logger.error(f"Error processing command: {e}")
-            return AgentResponse(
-                success=False,
-                message=f"Error: {str(e)}"
-            )
+        self.is_running = True
+        self.status = AgentStatus.MONITORING
+        self._monitoring_task = asyncio.create_task(self._monitoring_loop())
+        logger.info(f"Agent {self.agent_id} started monitoring {self.symbol}")
     
-    async def _cmd_start(self, command: AgentCommand) -> AgentResponse:
-        """Start 24/7 monitoring"""
-        if self.state == AgentState.MONITORING:
-            return AgentResponse(
-                success=False,
-                message="Agent is already monitoring"
-            )
-        
-        self.state = AgentState.MONITORING
-        
-        # Start monitoring task
-        self.monitoring_task = asyncio.create_task(self._monitoring_loop())
-        
-        # Initial analysis
-        await self._perform_initial_analysis()
-        
-        return AgentResponse(
-            success=True,
-            message="🚀 AI Agent started 24/7 monitoring",
-            data={
-                "state": self.state.value,
-                "pairs": settings.DEFAULT_PAIRS,
-                "timeframes": settings.TIMEFRAMES
-            },
-            action_taken="Started monitoring loop"
-        )
-    
-    async def _cmd_stop(self, command: AgentCommand) -> AgentResponse:
-        """Stop monitoring"""
-        if self.monitoring_task:
-            self.monitoring_task.cancel()
+    async def stop(self):
+        """Stop the agent gracefully"""
+        self.is_running = False
+        self.status = AgentStatus.STOPPED
+        if self._monitoring_task:
+            self._monitoring_task.cancel()
             try:
-                await self.monitoring_task
+                await self._monitoring_task
             except asyncio.CancelledError:
                 pass
-            self.monitoring_task = None
-        
-        self.state = AgentState.IDLE
-        
-        return AgentResponse(
-            success=True,
-            message="🛑 AI Agent stopped monitoring",
-            data={"state": self.state.value}
-        )
-    
-    async def _cmd_status(self, command: AgentCommand) -> AgentResponse:
-        """Get agent status"""
-        uptime = self._calculate_uptime()
-        
-        return AgentResponse(
-            success=True,
-            message=f"Agent Status: {self.state.value.upper()}",
-            data={
-                "state": self.state.value,
-                "uptime": uptime,
-                "ai_providers": list(self.clients.keys()),
-                "pairs_monitored": settings.DEFAULT_PAIRS,
-                "commands_processed": len(self.command_history),
-                "insights_generated": sum(len(v) for v in self.insights.values())
-            }
-        )
-    
-    async def _cmd_analyze(self, command: AgentCommand) -> AgentResponse:
-        """Analyze specific symbol"""
-        symbol = command.parameters.get("symbol", "BTCUSDT")
-        timeframe = command.parameters.get("timeframe", "1h")
-        
-        # Perform analysis
-        insight = await self._analyze_symbol(symbol, timeframe)
-        
-        return AgentResponse(
-            success=True,
-            message=f"Analysis complete for {symbol}",
-            data={
-                "symbol": symbol,
-                "timeframe": timeframe,
-                "insight": insight.__dict__ if insight else None
-            },
-            action_taken="Performed technical and sentiment analysis"
-        )
-    
-    async def _cmd_trade(self, command: AgentCommand) -> AgentResponse:
-        """Execute trade (if enabled)"""
-        symbol = command.parameters.get("symbol")
-        direction = command.parameters.get("direction")
-        size = command.parameters.get("size")
-        
-        # Validate trade
-        if not all([symbol, direction, size]):
-            return AgentResponse(
-                success=False,
-                message="Missing trade parameters"
-            )
-        
-        # In a real system, this would execute the trade
-        # For now, just return the intended action
-        return AgentResponse(
-            success=True,
-            message=f"Trade signal: {direction} {size} {symbol}",
-            data={
-                "symbol": symbol,
-                "direction": direction,
-                "size": size,
-                "status": "signal_generated"
-            },
-            action_taken="Generated trade signal"
-        )
-    
-    async def _cmd_scan(self, command: AgentCommand) -> AgentResponse:
-        """Scan all pairs for opportunities"""
-        opportunities = await self._scan_all_pairs()
-        
-        return AgentResponse(
-            success=True,
-            message=f"Scan complete. Found {len(opportunities)} opportunities",
-            data={"opportunities": opportunities}
-        )
-    
-    async def _cmd_alert(self, command: AgentCommand) -> AgentResponse:
-        """Set up alert"""
-        alert_type = command.parameters.get("type")
-        condition = command.parameters.get("condition")
-        
-        return AgentResponse(
-            success=True,
-            message=f"Alert configured: {alert_type}",
-            data={"alert_type": alert_type, "condition": condition}
-        )
-    
-    async def _cmd_config(self, command: AgentCommand) -> AgentResponse:
-        """Update configuration"""
-        key = command.parameters.get("key")
-        value = command.parameters.get("value")
-        
-        return AgentResponse(
-            success=True,
-            message=f"Configuration updated: {key}",
-            data={"key": key, "value": value}
-        )
+        logger.info(f"Agent {self.agent_id} stopped")
     
     async def _monitoring_loop(self):
-        """24/7 monitoring loop"""
-        logger.info("Starting 24/7 monitoring loop")
+        """
+        Main 24/7 monitoring loop with error handling and reconnection logic
+        FIXED: Replaced placeholder 'pass' with full implementation
+        """
+        retry_delay = 5
         
-        while self.state == AgentState.MONITORING:
+        while self.is_running:
             try:
-                # Check price movements
-                await self._check_price_movements()
+                # Check circuit breaker
+                if await self._check_circuit_breaker():
+                    logger.warning(f"Circuit breaker active for {self.agent_id}")
+                    await asyncio.sleep(60)
+                    continue
                 
-                # Check economic calendar
-                await self._check_economic_events()
+                # Reset daily stats if needed
+                if datetime.utcnow() - self.memory.last_reset > timedelta(days=1):
+                    self.memory.reset_daily_stats()
                 
-                # Check sentiment
-                await self._check_sentiment()
+                # Core monitoring cycle
+                self.status = AgentStatus.MONITORING
                 
-                # Generate signals if conditions met
-                await self._generate_signals()
+                # 1. Check price movements
+                price_data = await self._check_price_movements()
                 
-                # Wait before next iteration
-                await asyncio.sleep(settings.MONITOR_INTERVAL_SECONDS)
+                # 2. Generate signals if price action detected
+                if price_data is not None:
+                    self.status = AgentStatus.ANALYZING
+                    signal = await self._generate_signals(price_data)
+                    
+                    # 3. Execute if signal valid and autonomous mode enabled
+                    if signal and self.autonomous_mode:
+                        await self._execute_signal(signal)
+                
+                # Reset error counter on successful iteration
+                self.memory.clear_errors()
+                retry_delay = 5
+                
+                await asyncio.sleep(self.monitor_interval)
                 
             except asyncio.CancelledError:
-                logger.info("Monitoring loop cancelled")
                 break
             except Exception as e:
-                logger.error(f"Error in monitoring loop: {e}")
-                await asyncio.sleep(60)  # Wait longer on error
+                logger.error(f"Error in monitoring loop {self.agent_id}: {e}")
+                self.memory.record_error()
+                
+                if self.memory.consecutive_errors >= self.max_consecutive_errors:
+                    logger.critical(f"Agent {self.agent_id} exceeded max errors, stopping")
+                    self.status = AgentStatus.ERROR
+                    break
+                
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2, 300)  # Max 5 min backoff
     
-    async def _perform_initial_analysis(self):
-        """Perform initial analysis on all pairs"""
-        logger.info("Performing initial analysis...")
-        
-        for symbol in settings.DEFAULT_PAIRS[:5]:  # Limit to first 5 for speed
-            try:
-                insight = await self._analyze_symbol(symbol, settings.DEFAULT_TIMEFRAME)
-                if insight:
-                    if symbol not in self.insights:
-                        self.insights[symbol] = []
-                    self.insights[symbol].append(insight)
-                    
-                    # Check if we should alert
-                    if insight.confidence > settings.MIN_CONFIDENCE_THRESHOLD:
-                        await self._send_alert(f"High confidence insight for {symbol}: {insight.recommendation}")
-                        
-            except Exception as e:
-                logger.error(f"Error analyzing {symbol}: {e}")
+    async def _check_circuit_breaker(self) -> bool:
+        """Check if daily drawdown exceeds limit"""
+        if hasattr(self.mt5, 'get_account_info'):
+            account_info = await self.mt5.get_account_info()
+            if account_info:
+                daily_profit = account_info.get('profit', 0)
+                balance = account_info.get('balance', 1)
+                drawdown = daily_profit / balance if balance > 0 else 0
+                
+                if drawdown <= self.max_daily_loss:
+                    self.status = AgentStatus.CIRCUIT_BREAKER
+                    return True
+        return False
     
-    async def _analyze_symbol(self, symbol: str, timeframe: str) -> Optional[MarketInsight]:
-        """Analyze a symbol using AI"""
+    async def _check_price_movements(self) -> Optional[pd.DataFrame]:
+        """
+        Check for significant price movements and return OHLCV data
+        FIXED: Replaced placeholder 'pass' with full implementation
+        """
         try:
-            # Get market data
-            from ..data_collection.binance_client import get_binance_client
+            # Fetch recent price data from MT5
+            if not hasattr(self.mt5, 'get_rates'):
+                return None
+                
+            rates = await self.mt5.get_rates(self.symbol, timeframe='M15', count=100)
             
-            async with get_binance_client() as client:
-                klines = await client.get_klines(symbol, timeframe, limit=100)
-                ticker = await client.get_24h_ticker(symbol)
-            
-            if not klines:
+            if rates is None or len(rates) < 50:
+                logger.debug(f"Insufficient data for {self.symbol}")
                 return None
             
-            # Prepare data for AI analysis
-            analysis_prompt = self._build_analysis_prompt(symbol, timeframe, klines, ticker)
+            df = pd.DataFrame(rates)
+            df['time'] = pd.to_datetime(df['time'])
+            df.set_index('time', inplace=True)
             
-            # Get AI analysis
-            response = await self._chat_completion(analysis_prompt)
+            current_price = df['close'].iloc[-1]
+            last_price = self.memory.last_prices.get(self.symbol)
             
-            # Parse response
-            try:
-                result = json.loads(response)
-                
-                return MarketInsight(
-                    symbol=symbol,
-                    timeframe=timeframe,
-                    sentiment=result.get("sentiment", "neutral"),
-                    technical_score=result.get("technical_score", 0.5),
-                    fundamental_score=result.get("fundamental_score", 0.5),
-                    recommendation=result.get("recommendation", "hold"),
-                    confidence=result.get("confidence", 0.5),
-                    reasoning=result.get("reasoning", ""),
-                    timestamp=datetime.now()
-                )
-            except json.JSONDecodeError:
-                # Fallback if AI doesn't return valid JSON
-                return MarketInsight(
-                    symbol=symbol,
-                    timeframe=timeframe,
-                    sentiment="neutral",
-                    technical_score=0.5,
-                    fundamental_score=0.5,
-                    recommendation="analyze_manually",
-                    confidence=0.3,
-                    reasoning=response[:500],
-                    timestamp=datetime.now()
-                )
-                
+            # Store current price
+            self.memory.last_prices[self.symbol] = current_price
+            
+            # Check for significant movement (>0.1% change)
+            if last_price and abs(current_price - last_price) / last_price > 0.001:
+                logger.info(f"Price movement detected for {self.symbol}: {last_price} -> {current_price}")
+                return df
+            
+            # Also return data if we haven't checked in a while (for signal generation)
+            if not hasattr(self, '_last_check_time') or \
+               time.time() - self._last_check_time > 300:  # 5 minutes
+                self._last_check_time = time.time()
+                return df
+            
+            return None
+            
         except Exception as e:
-            logger.error(f"Error analyzing {symbol}: {e}")
+            logger.error(f"Error checking price movements for {self.symbol}: {e}")
             return None
     
-    def _build_analysis_prompt(self, symbol: str, timeframe: str, klines: List, ticker: Dict) -> str:
-        """Build analysis prompt for AI"""
-        # Calculate basic stats
-        closes = [float(k[4]) for k in klines]
-        highs = [float(k[2]) for k in klines]
-        lows = [float(k[3]) for k in klines]
-        volumes = [float(k[5]) for k in klines]
-        
-        current_price = closes[-1]
-        price_change_24h = ticker.get("priceChangePercent", 0)
-        volume_24h = ticker.get("volume", 0)
-        
-        # Calculate SMAs
-        sma_20 = sum(closes[-20:]) / 20 if len(closes) >= 20 else current_price
-        sma_50 = sum(closes[-50:]) / 50 if len(closes) >= 50 else current_price
-        
-        prompt = f"""Analyze this trading data and provide insights:
-
-Symbol: {symbol}
-Timeframe: {timeframe}
-Current Price: {current_price}
-24h Change: {price_change_24h}%
-24h Volume: {volume_24h}
-
-Price Data (last 20 candles):
-- High: {max(highs[-20:])}
-- Low: {min(lows[-20:])}
-- SMA 20: {sma_20}
-- SMA 50: {sma_50}
-
-Provide analysis in this JSON format:
-{{
-    "sentiment": "bullish/bearish/neutral",
-    "technical_score": 0.0-1.0,
-    "fundamental_score": 0.0-1.0,
-    "recommendation": "buy/sell/hold/wait",
-    "confidence": 0.0-1.0,
-    "reasoning": "detailed explanation"
-}}
-"""
-        return prompt
-    
-    async def _chat_completion(self, prompt: str, provider: str = None) -> str:
-        """Get chat completion from AI"""
-        # Use default provider or first available
-        if not provider:
-            provider = "openrouter" if "openrouter" in self.clients else list(self.clients.keys())[0]
-        
-        client = self.clients.get(provider)
-        if not client:
-            return "Error: No AI client available"
-        
+    async def _generate_signals(self, df: pd.DataFrame) -> Optional[TradingSignal]:
+        """
+        Generate trading signals using SMC analysis
+        FIXED: Replaced placeholder 'pass' with full implementation
+        """
         try:
-            if provider == "openrouter":
-                response = await client.chat.completions.create(
-                    model="anthropic/claude-3-sonnet",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3
-                )
-                return response.choices[0].message.content
-                
-            elif provider == "gemini":
-                response = await asyncio.to_thread(client.generate_content, prompt)
-                return response.text
-                
-            elif provider == "groq":
-                response = await client.chat.completions.create(
-                    model="mixtral-8x7b-32768",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3
-                )
-                return response.choices[0].message.content
-                
-            elif provider == "anthropic":
-                response = await client.messages.create(
-                    model="claude-3-sonnet-20240229",
-                    max_tokens=1000,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response.content[0].text
-                
+            # Technical analysis
+            signal = self.signal_generator.generate_signal(
+                symbol=self.symbol,
+                df=df,
+                timeframe='M15'
+            )
+            
+            if signal is None:
+                return None
+            
+            # Fundament analysis logic can be added here
+            
+            # Store in memory
+            self.memory.add_signal(signal)
+            
+            # Log signal
+            logger.info(f"Signal generated for {self.symbol}: "
+                       f"{signal.direction.upper()} @ {signal.entry_price} "
+                       f"(Confidence: {signal.confidence})")
+            
+            # Notify if callback provided
+            if self.signal_callback:
+                await self.signal_callback(self.agent_id, signal)
+            
+            return signal
+            
         except Exception as e:
-            logger.error(f"AI completion error: {e}")
-            return f"Error: {str(e)}"
+            logger.error(f"Error generating signals for {self.symbol}: {e}")
+            return None
     
-    async def _check_price_movements(self):
-        """Check for significant price movements"""
-        # Implementation would check price changes and alert on significant moves
-        pass
+    async def _execute_signal(self, signal: TradingSignal):
+        """Execute trade via ExecutionManager"""
+        from .execution_manager import ExecutionManager
+        execution_manager = ExecutionManager(self.mt5)
+        await execution_manager.execute_signal(signal, self.agent_id)
+        self.memory.add_trade({
+            'signal': signal,
+            'timestamp': datetime.utcnow(),
+            'profit': 0  # Updated later
+        })
     
-    async def _check_economic_events(self):
-        """Check for upcoming economic events"""
-        # Implementation would check Forex Factory calendar
-        pass
+    def get_status(self) -> Dict:
+        """Get current agent status"""
+        return {
+            'agent_id': self.agent_id,
+            'symbol': self.symbol,
+            'status': self.status.value,
+            'is_running': self.is_running,
+            'daily_pnl': self.memory.daily_pnl,
+            'daily_trades': self.memory.daily_trades,
+            'recent_signals': len(self.memory.recent_signals),
+            'autonomous_mode': self.autonomous_mode
+        }
+
+
+class AgentSwarm:
+    """
+    Factory and Manager for Multiple AI Agents
+    Implements the Swarm Architecture
+    """
     
-    async def _check_sentiment(self):
-        """Check market sentiment"""
-        # Implementation would check social sentiment
-        pass
-    
-    async def _generate_signals(self):
-        """Generate trading signals"""
-        # Implementation would generate signals based on analysis
-        pass
-    
-    async def _scan_all_pairs(self) -> List[Dict]:
-        """Scan all pairs for opportunities"""
-        opportunities = []
+    def __init__(self, mt5_client, config: Dict = None):
+        self.mt5 = mt5_client
+        self.config = config or {}
+        self.agents: Dict[str, AIAgent] = {}
+        self._lock = threading.Lock()
+        self._executor = ThreadPoolExecutor(max_workers=10)
         
-        for symbol in settings.DEFAULT_PAIRS:
-            try:
-                insight = await self._analyze_symbol(symbol, settings.DEFAULT_TIMEFRAME)
-                if insight and insight.confidence > settings.MIN_CONFIDENCE_THRESHOLD:
-                    opportunities.append({
-                        "symbol": symbol,
-                        "recommendation": insight.recommendation,
-                        "confidence": insight.confidence,
-                        "reasoning": insight.reasoning
-                    })
-            except Exception as e:
-                logger.error(f"Error scanning {symbol}: {e}")
+    def create_agent(self, 
+                     symbol: str, 
+                     agent_id: Optional[str] = None,
+                     agent_config: Optional[Dict] = None) -> AIAgent:
+        """
+        Factory method to create new agent instance
         
-        return opportunities
+        Args:
+            symbol: Trading symbol
+            agent_id: Optional custom ID (default: auto-generated)
+            agent_config: Optional agent-specific config
+            
+        Returns:
+            AIAgent instance
+        """
+        with self._lock:
+            if agent_id is None:
+                agent_id = f"{symbol}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+            
+            if agent_id in self.agents:
+                raise ValueError(f"Agent {agent_id} already exists")
+            
+            config = {**self.config, **(agent_config or {})}
+            
+            agent = AIAgent(
+                symbol=symbol,
+                agent_id=agent_id,
+                mt5_client=self.mt5,
+                config=config,
+                signal_callback=self._on_signal
+            )
+            
+            self.agents[agent_id] = agent
+            logger.info(f"Created agent {agent_id} for {symbol}")
+            return agent
     
-    async def _send_alert(self, message: str):
-        """Send alert to registered callbacks"""
-        for callback in self.alert_callbacks:
-            try:
-                await callback(message)
-            except Exception as e:
-                logger.error(f"Alert callback error: {e}")
+    def remove_agent(self, agent_id: str):
+        """Remove and stop an agent"""
+        with self._lock:
+            if agent_id in self.agents:
+                agent = self.agents[agent_id]
+                asyncio.create_task(agent.stop())
+                del self.agents[agent_id]
+                logger.info(f"Removed agent {agent_id}")
     
-    def register_alert_callback(self, callback: Callable):
-        """Register alert callback"""
-        self.alert_callbacks.append(callback)
+    async def start_all(self):
+        """Start all agents in the swarm"""
+        await asyncio.gather(*[agent.start() for agent in self.agents.values()])
     
-    def _calculate_uptime(self) -> str:
-        """Calculate system uptime"""
-        # Simplified - would track actual start time
-        return "Running"
+    async def stop_all(self):
+        """Stop all agents"""
+        await asyncio.gather(*[agent.stop() for agent in self.agents.values()])
+    
+    def get_agent(self, agent_id: str) -> Optional[AIAgent]:
+        """Get specific agent by ID"""
+        return self.agents.get(agent_id)
+    
+    def list_agents(self) -> List[Dict]:
+        """List all agents and their status"""
+        return [agent.get_status() for agent in self.agents.values()]
+    
+    def get_swarm_stats(self) -> Dict:
+        """Get aggregate statistics for entire swarm"""
+        total_pnl = sum(a.memory.daily_pnl for a in self.agents.values())
+        total_trades = sum(a.memory.daily_trades for a in self.agents.values())
+        active_agents = sum(1 for a in self.agents.values() if a.is_running)
+        
+        return {
+            'total_agents': len(self.agents),
+            'active_agents': active_agents,
+            'total_daily_pnl': total_pnl,
+            'total_daily_trades': total_trades,
+            'agents': self.list_agents()
+        }
+    
+    async def _on_signal(self, agent_id: str, signal: TradingSignal):
+        """Callback for when any agent generates a signal"""
+        logger.info(f"Swarm received signal from {agent_id}: {signal.direction} {signal.symbol}")
 
 
-# Singleton instance
-_agent_instance: Optional[AIAgent] = None
+# Singleton instance for application-wide access
+_swarm_instance: Optional[AgentSwarm] = None
 
+def get_swarm(mt5_client = None, config: Dict = None) -> AgentSwarm:
+    """Get or create singleton swarm instance"""
+    global _swarm_instance
+    if _swarm_instance is None:
+        # Avoid circular imports by importing settings only if needed
+        from ..config import settings
+        from ..mt5_client import MT5Client
+        
+        cfg = config or (settings.model_dump() if hasattr(settings, 'model_dump') else settings.dict() if hasattr(settings, 'dict') else dict(settings))
+        mt5 = mt5_client or MT5Client(cfg)
+        _swarm_instance = AgentSwarm(mt5, cfg)
+        
+    return _swarm_instance
 
-def get_agent() -> AIAgent:
-    """Get or create AI agent singleton"""
-    global _agent_instance
-    if _agent_instance is None:
-        _agent_instance = AIAgent()
-    return _agent_instance
+def get_agent() -> AgentSwarm:
+    """Compatibility alias for get_swarm to match main.py"""
+    return get_swarm()

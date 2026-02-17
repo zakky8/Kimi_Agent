@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
-  Play, 
-  Pause, 
-  Stop, 
-  Activity, 
-  Globe, 
+import {
+  Play,
+  Pause,
+  Square,
+  Activity,
+  Globe,
   Bot,
   Clock,
   CheckCircle,
@@ -53,7 +53,7 @@ export default function Monitoring() {
   const [uptime, setUptime] = useState('00:00:00');
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (status.isRunning && status.startTime) {
       interval = setInterval(() => {
         const now = new Date();
@@ -166,7 +166,7 @@ export default function Monitoring() {
                 onClick={handleStop}
                 className="flex items-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
               >
-                <Stop className="w-5 h-5" />
+                <Square className="w-5 h-5" />
                 Stop
               </button>
             </>
@@ -232,7 +232,7 @@ export default function Monitoring() {
             <Terminal className="w-5 h-5 text-purple-400" />
             Live Logs
           </h3>
-          <button 
+          <button
             onClick={() => setLogs([])}
             className="text-sm text-slate-400 hover:text-white transition-colors"
           >
@@ -265,9 +265,9 @@ export default function Monitoring() {
           <div>
             <h3 className="text-lg font-semibold text-white mb-2">24/7 Automated Monitoring</h3>
             <p className="text-slate-400 text-sm leading-relaxed">
-              When started, the AI agent continuously monitors markets, analyzes price action, 
-              detects liquidity zones, and generates trading signals. The system uses your 
-              configured API keys for real-time data and executes browser automation for 
+              When started, the AI agent continuously monitors markets, analyzes price action,
+              detects liquidity zones, and generates trading signals. The system uses your
+              configured API keys for real-time data and executes browser automation for
               web-based analysis.
             </p>
             <div className="flex flex-wrap gap-2 mt-4">

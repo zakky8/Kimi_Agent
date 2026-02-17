@@ -13,7 +13,7 @@ interface EconomicEvent {
 }
 
 export default function Calendar() {
-  const [events, setEvents] = useState<EconomicEvent[]>([
+  const [events] = useState<EconomicEvent[]>([
     { id: '1', time: '08:00 AM', currency: 'EUR', event: 'German CPI m/m', impact: 'high', forecast: '0.3%', previous: '0.2%' },
     { id: '2', time: '08:30 AM', currency: 'GBP', event: 'UK GDP m/m', impact: 'high', forecast: '0.1%', previous: '-0.1%' },
     { id: '3', time: '10:00 AM', currency: 'EUR', event: 'EU Economic Forecasts', impact: 'medium', forecast: '-', previous: '-' },
@@ -102,11 +102,10 @@ export default function Calendar() {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              filter === f 
-                ? 'bg-blue-500 text-white' 
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter === f
+                ? 'bg-blue-500 text-white'
                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-            }`}
+              }`}
           >
             {f === 'all' ? 'All Events' : `${f.charAt(0).toUpperCase() + f.slice(1)} Impact`}
           </button>

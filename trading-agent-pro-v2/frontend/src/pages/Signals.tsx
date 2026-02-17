@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { 
-  Signal, 
-  TrendingUp, 
-  TrendingDown, 
-  Filter, 
-  Download, 
+import {
+  Signal,
+  TrendingUp,
+  TrendingDown,
+  Filter,
+  Download,
   Bell,
   Target,
   Shield,
@@ -30,7 +30,7 @@ interface TradingSignal {
 
 export default function Signals() {
   const [filter, setFilter] = useState<'all' | 'active' | 'pending' | 'completed'>('all');
-  const [signals, setSignals] = useState<TradingSignal[]>([
+  const [signals] = useState<TradingSignal[]>([
     {
       id: 'SIG-001',
       pair: 'EURUSD',
@@ -152,11 +152,10 @@ export default function Signals() {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              filter === f 
-                ? 'bg-blue-500 text-white' 
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter === f
+                ? 'bg-blue-500 text-white'
                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-            }`}
+              }`}
           >
             {f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
@@ -170,9 +169,8 @@ export default function Signals() {
             {/* Header */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  signal.type === 'BUY' ? 'bg-green-500/20' : 'bg-red-500/20'
-                }`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${signal.type === 'BUY' ? 'bg-green-500/20' : 'bg-red-500/20'
+                  }`}>
                   {signal.type === 'BUY' ? (
                     <TrendingUp className="w-6 h-6 text-green-400" />
                   ) : (

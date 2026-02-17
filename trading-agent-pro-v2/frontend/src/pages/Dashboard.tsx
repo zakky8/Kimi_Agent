@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Activity, 
-  DollarSign, 
-  BarChart3, 
+import { useState } from 'react';
+import {
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  DollarSign,
+  BarChart3,
   Globe,
   Zap,
   Clock,
@@ -29,7 +29,7 @@ interface SystemStatus {
 }
 
 export default function Dashboard() {
-  const [marketData, setMarketData] = useState<MarketData[]>([
+  const [marketData] = useState<MarketData[]>([
     { symbol: 'EURUSD', price: 1.0845, change: 0.0023, changePercent: 0.21 },
     { symbol: 'GBPUSD', price: 1.2634, change: -0.0012, changePercent: -0.09 },
     { symbol: 'XAUUSD', price: 2034.56, change: 12.40, changePercent: 0.61 },
@@ -37,7 +37,7 @@ export default function Dashboard() {
     { symbol: 'ETHUSD', price: 2890.25, change: 45.30, changePercent: 1.59 },
   ]);
 
-  const [systemStatus, setSystemStatus] = useState<SystemStatus>({
+  const [systemStatus] = useState<SystemStatus>({
     aiAgent: true,
     browserAutomation: true,
     telegramCollector: true,
@@ -45,7 +45,7 @@ export default function Dashboard() {
     monitoring24_7: true,
   });
 
-  const [recentSignals, setRecentSignals] = useState([
+  const [recentSignals] = useState([
     { id: 1, pair: 'EURUSD', type: 'BUY', confidence: 87, time: '2 min ago', status: 'active' },
     { id: 2, pair: 'XAUUSD', type: 'SELL', confidence: 72, time: '15 min ago', status: 'pending' },
     { id: 3, pair: 'GBPUSD', type: 'BUY', confidence: 91, time: '32 min ago', status: 'completed' },
@@ -106,7 +106,7 @@ export default function Dashboard() {
               Updated: Just now
             </span>
           </div>
-          
+
           <div className="space-y-3">
             {marketData.map((item) => (
               <div key={item.symbol} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors">
@@ -139,7 +139,7 @@ export default function Dashboard() {
               <Activity className="w-5 h-5 text-green-400" />
               System Status
             </h2>
-            
+
             <div className="space-y-3">
               {Object.entries(systemStatus).map(([key, status]) => (
                 <div key={key} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl">
@@ -165,15 +165,14 @@ export default function Dashboard() {
               <Zap className="w-5 h-5 text-yellow-400" />
               Recent Signals
             </h2>
-            
+
             <div className="space-y-3">
               {recentSignals.map((signal) => (
                 <div key={signal.id} className="p-3 bg-slate-800/50 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-semibold text-white">{signal.pair}</span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      signal.type === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                    }`}>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${signal.type === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                      }`}>
                       {signal.type}
                     </span>
                   </div>

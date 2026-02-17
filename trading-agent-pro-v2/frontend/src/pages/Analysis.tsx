@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Activity, 
+import {
+  TrendingUp,
+  Activity,
   Layers,
   Target,
   Zap,
@@ -10,7 +9,7 @@ import {
   ArrowDownRight,
   Droplets,
   Box,
-  Gap
+  Layout as Gap
 } from 'lucide-react';
 
 interface LiquidityZone {
@@ -116,11 +115,10 @@ export default function Analysis() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === tab.id 
-                ? 'bg-blue-500 text-white' 
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeTab === tab.id
+                ? 'bg-blue-500 text-white'
                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-            }`}
+              }`}
           >
             <tab.icon className="w-4 h-4" />
             {tab.label}
@@ -179,9 +177,8 @@ export default function Analysis() {
               {liquidityZones.map((zone) => (
                 <div key={zone.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl">
                   <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      zone.type === 'buy_side' ? 'bg-green-500/20' : 'bg-red-500/20'
-                    }`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${zone.type === 'buy_side' ? 'bg-green-500/20' : 'bg-red-500/20'
+                      }`}>
                       {zone.type === 'buy_side' ? (
                         <ArrowUpRight className="w-5 h-5 text-green-400" />
                       ) : (
@@ -219,9 +216,8 @@ export default function Analysis() {
               <div key={ob.id} className="p-4 bg-slate-800/50 rounded-xl">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      ob.type === 'bullish' ? 'bg-green-500/20' : 'bg-red-500/20'
-                    }`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${ob.type === 'bullish' ? 'bg-green-500/20' : 'bg-red-500/20'
+                      }`}>
                       {ob.type === 'bullish' ? (
                         <TrendingUp className="w-5 h-5 text-green-400" />
                       ) : (
@@ -262,9 +258,8 @@ export default function Analysis() {
             {fvgs.map((fvg) => (
               <div key={fvg.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl">
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    fvg.type === 'bullish' ? 'bg-green-500/20' : 'bg-red-500/20'
-                  }`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${fvg.type === 'bullish' ? 'bg-green-500/20' : 'bg-red-500/20'
+                    }`}>
                     <Zap className={`w-5 h-5 ${fvg.type === 'bullish' ? 'text-green-400' : 'text-red-400'}`} />
                   </div>
                   <div>
@@ -298,9 +293,8 @@ export default function Analysis() {
             {priceActionPatterns.map((pattern, index) => (
               <div key={index} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl">
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    pattern.direction === 'bullish' ? 'bg-green-500/20' : 'bg-red-500/20'
-                  }`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${pattern.direction === 'bullish' ? 'bg-green-500/20' : 'bg-red-500/20'
+                    }`}>
                     <Target className={`w-5 h-5 ${pattern.direction === 'bullish' ? 'text-green-400' : 'text-red-400'}`} />
                   </div>
                   <div>
@@ -313,11 +307,10 @@ export default function Analysis() {
                     <p className="text-sm text-slate-400">Confidence</p>
                     <p className="font-bold text-purple-400">{pattern.confidence}%</p>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
-                    pattern.direction === 'bullish' 
-                      ? 'bg-green-500/20 text-green-400' 
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${pattern.direction === 'bullish'
+                      ? 'bg-green-500/20 text-green-400'
                       : 'bg-red-500/20 text-red-400'
-                  }`}>
+                    }`}>
                     {pattern.direction}
                   </div>
                 </div>

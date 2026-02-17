@@ -1,4 +1,4 @@
-import { Menu, Bell, User, LogOut, Moon, Sun } from 'lucide-react';
+import { Menu, Bell, User, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 
 interface HeaderProps {
@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   const [darkMode, setDarkMode] = useState(true);
-  const [notifications, setNotifications] = useState(3);
+  const [notifications] = useState(3);
 
   return (
     <header className="h-16 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 flex items-center justify-between px-6">
@@ -19,7 +19,7 @@ export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        
+
         <div className="hidden md:flex items-center gap-2 text-sm text-slate-400">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           <span>AI Agent Active</span>
