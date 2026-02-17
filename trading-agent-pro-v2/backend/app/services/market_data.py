@@ -89,7 +89,8 @@ async def get_yfinance_data(symbol: str):
         "XAUUSD": "GC=F",
         "GOLD": "GC=F",
         "BTCUSDT": "BTC-USD",
-        "ETHUSDT": "ETH-USD"
+        "ETHUSDT": "ETH-USD",
+        "DXY": "DX-Y.NYB"
     }
     yf_symbol = ticker_map.get(symbol, symbol)
     
@@ -127,3 +128,11 @@ async def get_yfinance_data(symbol: str):
     except Exception as e:
         logger.error(f"YFinance Error for {yf_symbol}: {e}")
         return None
+
+async def get_institutional_context():
+    """Fetch intermarket data (DXY, Bonds, etc.) for high-level correlation"""
+    dxy = await get_yfinance_data("DXY")
+    return {
+        "dxy": dxy,
+        "sentiment": "Risk On" if dxy and dxy.get('macd') == "Bearish" else "Risk Off"
+    }

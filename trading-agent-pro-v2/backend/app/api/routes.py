@@ -17,7 +17,7 @@ from ..mt5_client import MT5Client
 from ..config import settings # Assuming settings from config.py
 from ..core.chat_history_manager import chat_history_manager
 from ..core.settings_manager import settings_manager
-from ..services.market_data import get_market_data
+from ..services.market_data import get_market_data, get_institutional_context
 try:
     import google.generativeai as genai
 except ImportError:
@@ -166,17 +166,19 @@ async def emergency_shutdown():
     mt5 = swarm.mt5
     
     positions = await mt5.get_positions()
-    closed: int = 0
+    closed_results = []
     for pos in positions:
         result = await mt5.close_position(pos['ticket'])
-        if result['success']: closed += 1
+        if result and result.get('success'):
+            closed_results.append(True)
     
+    closed_count = len(closed_results)
     await swarm.stop_all()
     
     return {
         "success": True,
         "message": "Emergency shutdown completed",
-        "positions_closed": closed
+        "positions_closed": closed_count
     }
 
 # Health Check
@@ -313,14 +315,26 @@ async def chat_message(request: ChatMessageRequest):
                     recent_ob = obs[-1] if obs else None
                     recent_fvg = fvgs[-1] if fvgs else None
                     
+                    # Institutional Surges
+                    vol_zones = sg.identify_institutional_volume_zones(df)
+                    inst_surges = len([z for z in vol_zones if z.type == 'institutional_surge'])
+                    
+                    # Intermarket Context
+                    inst_context = await get_institutional_context()
+                    dxy = inst_context.get('dxy', {})
+                    sentiment = inst_context.get('sentiment', 'Neutral')
+                    
                     smc_context = (
-                        f"### SMC TECHNICAL CONTEXT\n"
+                        f"### SMC & INSTITUTIONAL CONTEXT\n"
                         f"- **Market Structure**: {ms.value if ms else 'Unknown'}\n"
-                        f"- **Recent Order Block**: {f'{recent_ob.direction.value} at {recent_ob.price_low}-{recent_ob.price_high}' if recent_ob else 'None detected'}\n"
-                        f"- **Recent FVG**: {f'{recent_fvg.direction.value} gap at {recent_fvg.price_low}-{recent_fvg.price_high}' if recent_fvg else 'None detected'}\n"
+                        f"- **Institutional Sentiment**: {sentiment}\n"
+                        f"- **DXY Status**: {dxy.get('macd', 'N/A')} (Price: {dxy.get('price', 'N/A')})\n"
+                        f"- **Institutional Volume Surges**: {inst_surges} detected in recent 100 bars\n"
+                        f"- **Recent Order Block**: {f'{recent_ob.direction.value} at {recent_ob.price_low}-{recent_ob.price_high}' if recent_ob else 'None'}\n"
+                        f"- **Fair Value Gap**: {f'{recent_fvg.direction.value} at {recent_fvg.price_low}-{recent_fvg.price_high}' if recent_fvg else 'None'}\n"
                     )
         except Exception as smc_err:
-            logger.error(f"SMC Analysis Context Error: {smc_err}")
+            logger.error(f"Institutional/SMC Analysis Context Error: {smc_err}")
 
         market_context = ""
         if real_data:

@@ -16,6 +16,7 @@ import pandas as pd
 
 from .signal_generator import SignalGenerator, TradingSignal, OrderBlockType
 from ..core.trade_history_manager import trade_history_manager
+from ..services.market_data import get_institutional_context
 # Assuming these exist or will be created
 # from ..mt5_client import MT5Client 
 # Need to check where MT5Client is actually located in the folder structure
@@ -263,10 +264,16 @@ class AIAgent:
     
     async def _generate_signals(self, df: pd.DataFrame) -> Optional[TradingSignal]:
         """
-        Generate trading signals using SMC analysis with Evolution filtering
+        Generate trading signals using Institutional-Grade Multi-Source Analysis
         """
         try:
-            # 1. Technical analysis
+            # 1. Multi-Intermarket Context (DXY, Sentiment)
+            inst_context = await get_institutional_context()
+            
+            # 2. Institutional Volume Profile Analysis
+            vol_zones = self.signal_generator.identify_institutional_volume_zones(df)
+            
+            # 3. Core Technical analysis
             signal = self.signal_generator.generate_signal(
                 symbol=self.symbol,
                 df=df,
@@ -276,10 +283,22 @@ class AIAgent:
             if signal is None:
                 return None
             
-            # 2. Evolution Filtering: Check if setup matches known mistakes
+            # 4. Institutional Confluence Check
+            # If Gold (XAUUSD), it should have Inverse Correlation with DXY
+            if "XAU" in self.symbol and inst_context.get('dxy'):
+                dxy_direction = inst_context['dxy'].get('macd')
+                if dxy_direction == "Bullish" and signal.direction == "buy":
+                    logger.warning(f"Blocking Gold Buy due to Institutional DXY Headwind (DXY is Bullish)")
+                    return None
+            
+            # 5. Evolution Filtering
             if await self._is_repeating_mistake(signal, df):
                 logger.warning(f"Agent {self.agent_id} blocked potential repeating mistake on {self.symbol}")
                 return None
+            
+            # 6. Inject institutional data into signal metadata
+            signal.metadata['institutional_context'] = inst_context
+            signal.metadata['volume_surges'] = len(vol_zones)
             
             # Store in memory
             self.memory.add_signal(signal)

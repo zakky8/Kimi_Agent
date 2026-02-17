@@ -186,6 +186,25 @@ class SMCAnalyzer:
         
         return sweeps
     
+    def identify_institutional_volume_zones(self, df: pd.DataFrame) -> List[SMCZone]:
+        """Identify zones with abnormal institutional volume density (VSA)"""
+        zones = []
+        vol_sma = df['volume'].rolling(20).mean()
+        
+        for i in range(20, len(df)):
+            if df['volume'].iloc[i] > vol_sma.iloc[i] * 2.0: # Institutional surge
+                direction = OrderBlockType.BULLISH if df['close'].iloc[i] > df['open'].iloc[i] else OrderBlockType.BEARISH
+                zones.append(SMCZone(
+                    type='institutional_surge',
+                    direction=direction,
+                    price_high=df['high'].iloc[i],
+                    price_low=df['low'].iloc[i],
+                    timestamp=df.index[i],
+                    strength=0.9,
+                    volume_profile=df['volume'].iloc[i] / vol_sma.iloc[i]
+                ))
+        return zones
+    
     def _calculate_ob_strength(self, df: pd.DataFrame, index: int, direction: str) -> float:
         """Calculate the strength of an order block based on volume and price action"""
         candle = df.iloc[index]
@@ -257,6 +276,10 @@ class SignalGenerator:
         )
         
         return signal
+
+    def identify_institutional_volume_zones(self, df: pd.DataFrame) -> List[SMCZone]:
+        """Wrapper for SMCAnalyzer institutional volume zones"""
+        return self.smc.identify_institutional_volume_zones(df)
     
     def _evaluate_confluence(self, symbol: str, current_price: float, 
                            order_blocks: List[SMCZone], fvgs: List[SMCZone],
