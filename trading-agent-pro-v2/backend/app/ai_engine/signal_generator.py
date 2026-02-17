@@ -291,7 +291,7 @@ class SignalGenerator:
                     return self._create_signal(
                         symbol, 'buy', current_price, nearest_ob, 
                         bullish_fvgs[-1] if bullish_fvgs else None,
-                        confidence, df, timeframe
+                        confidence, df, timeframe, market_structure
                     )
         
         # Bearish Scenario: Price at OB + FVG alignment + Liquidity sweep + Downtrend
@@ -310,7 +310,7 @@ class SignalGenerator:
                     return self._create_signal(
                         symbol, 'sell', current_price, nearest_ob,
                         bearish_fvgs[-1] if bearish_fvgs else None,
-                        confidence, df, timeframe
+                        confidence, df, timeframe, market_structure
                     )
         
         return None
@@ -340,7 +340,7 @@ class SignalGenerator:
     
     def _create_signal(self, symbol: str, direction: str, entry: float, 
                       ob: SMCZone, fvg: Optional[SMCZone], confidence: float,
-                      df: pd.DataFrame, timeframe: str) -> TradingSignal:
+                      df: pd.DataFrame, timeframe: str, market_structure: MarketStructure) -> TradingSignal:
         """Create trading signal with proper risk management"""
         
         atr = self._calculate_atr(df)

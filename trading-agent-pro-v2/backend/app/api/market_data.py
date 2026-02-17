@@ -58,7 +58,7 @@ async def get_live_prices(
     )
 ):
     """Get live prices for multiple symbols"""
-    global _price_cache, _cache_time
+    global _cache_time
     
     requested = [s.strip().upper().replace("/", "") for s in symbols.split(",")]
     
