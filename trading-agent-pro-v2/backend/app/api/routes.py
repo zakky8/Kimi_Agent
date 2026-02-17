@@ -9,9 +9,17 @@ import asyncio
 from openai import AsyncOpenAI
 import logging
 
+from datetime import datetime
 from ..ai_engine.agent import get_swarm, AIAgent, AgentStatus
 from ..mt5_client import MT5Client
 from ..config import settings # Assuming settings from config.py
+from ..core.chat_history_manager import chat_history_manager
+from ..core.settings_manager import settings_manager
+from ..services.market_data import get_market_data
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["control_panel"])
@@ -156,7 +164,7 @@ async def emergency_shutdown():
     mt5 = swarm.mt5
     
     positions = await mt5.get_positions()
-    closed = 0
+    closed: int = 0
     for pos in positions:
         result = await mt5.close_position(pos['ticket'])
         if result['success']: closed += 1
@@ -195,8 +203,6 @@ class AgentActionRequest(BaseModel):
 @router.post("/chat/message")
 async def chat_message(request: ChatMessageRequest):
     """Process a chat message with LLM integration"""
-    from ..core.chat_history_manager import chat_history_manager
-    from datetime import datetime
 
     msg = request.message.strip().lower()
     symbol = request.symbol
@@ -285,7 +291,6 @@ async def chat_message(request: ChatMessageRequest):
         target_symbol = parts[1].upper() if len(parts) > 1 else symbol
         
         # 1. Fetch Real-Time Data
-        from ..services.market_data import get_market_data
         real_data = await get_market_data(target_symbol)
         
         market_context = ""
@@ -333,8 +338,7 @@ async def chat_message(request: ChatMessageRequest):
                     )
                     ai_response = completion.choices[0].message.content
                 
-                elif settings.GEMINI_API_KEY:
-                    import google.generativeai as genai
+                elif settings.GEMINI_API_KEY and genai:
                     genai.configure(api_key=settings.GEMINI_API_KEY)
                     model = genai.GenerativeModel("gemini-pro")
                     completion = await model.generate_content_async(f"{system_prompt}\n\nAnalyze {target_symbol}")
@@ -366,9 +370,8 @@ async def chat_message(request: ChatMessageRequest):
     
     # ─── AI CHAT HANDLING ────────────────────────────────────────────────────
     
-    elif settings.GEMINI_API_KEY:
+    elif settings.GEMINI_API_KEY and genai:
         try:
-            import google.generativeai as genai
             genai.configure(api_key=settings.GEMINI_API_KEY)
             model = genai.GenerativeModel("gemini-pro")
             
@@ -404,8 +407,6 @@ async def chat_message(request: ChatMessageRequest):
             )
             
             # Fetch Real-Time Data
-            from ..services.market_data import get_market_data
-            
             market_context = "**Real-Time Market Data**:\nData Unavailable (Mock/Error)"
             real_data = await get_market_data(symbol)
             
@@ -651,7 +652,6 @@ async def update_settings(request: SettingsUpdateRequest):
 
     # Persist to file
     try:
-        from ..core.settings_manager import settings_manager
         settings_manager.save_settings(updates)
         saved = True
     except Exception as e:
@@ -673,7 +673,6 @@ async def update_settings(request: SettingsUpdateRequest):
 async def get_chat_history():
     """Get persistent chat history"""
     try:
-        from ..core.chat_history_manager import chat_history_manager
         return chat_history_manager.load_history()
     except Exception as e:
         return []
@@ -682,7 +681,6 @@ async def get_chat_history():
 async def clear_chat_history():
     """Clear chat history"""
     try:
-        from ..core.chat_history_manager import chat_history_manager
         chat_history_manager.clear_history()
         return {"success": True, "message": "History cleared"}
     except Exception as e:
