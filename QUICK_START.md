@@ -1,58 +1,61 @@
-# 🚀 AI Trading Agent Pro v2 - Quick Start
+# 🚀 Quick Start Guide — Kimi Agent v3.0
 
-## 🏁 Prerequisites
-- **Python 3.10+** (Backend)
-- **Node.js 18+** (Frontend)
-- **Active AI API Key** (OpenRouter or Gemini)
-
-## 🛠️ Installation
-
-1. **Enter the project directory**:
-   ```bash
-   cd trading-agent-pro-v2
-   ```
-
-2. **Backend Setup**:
-   ```bash
-   cd backend
-   python -m venv venv
-   source venv/bin/activate  # Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. **Frontend Setup**:
-   ```bash
-   cd ../frontend
-   npm install
-   ```
-
-## 🏃 Running the Application
-
-### 1. Start Backend (Port 8001)
-```bash
-cd backend
-python main.py
-```
-
-### 2. Start Frontend (Port 3000)
-```bash
-cd frontend
-npm run dev
-```
-
-## ⚙️ Initial Configuration
-1. Open http://localhost:3000 in your browser.
-2. Navigate to the **Settings** page.
-3. Enter your **OpenRouter** or **Gemini** API key.
-4. (Optional) Add **Binance** API keys for real-time crypto execution.
-5. Save settings and start chatting with your AI agent!
-
-## 🧪 Verification
-To ensure everything is working, run the automated tests:
-```bash
-cd backend
-python -m pytest tests/
-```
+## Prerequisites
+- **Docker** & **Docker Compose**
+- **Python 3.11+**
+- **Node.js 18+** (for frontend development)
 
 ---
-*For more details, see [FILE_STRUCTURE.md](./FILE_STRUCTURE.md) or the project-level [README.md](./trading-agent-pro-v2/README.md).*
+
+## 1. Environment Setup
+
+Copy the example configuration file:
+```bash
+cp .env.example .env
+```
+
+### ⚠️ CRITICAL SECURITY STEP for v3.0
+You **MUST** set a secure password for the database in your `.env` file. The default password has been removed for security.
+
+Open `.env` and set:
+```ini
+POSTGRES_PASSWORD=your_secure_password_here
+```
+*(If you fail to do this, the database container will trigger a security alert or fail to start.)*
+
+---
+
+## 2. Start the Stack (Development)
+
+Run the full stack with hot-reloading:
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+- **Dashboard**: [http://localhost:3000](http://localhost:3000)
+- **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **MLflow**: [http://localhost:5000](http://localhost:5000)
+
+---
+
+## 3. Configure API Keys
+
+1. Go to the **Settings** page in the dashboard.
+2. Enter your **OpenRouter** or **Gemini** API key (required for AI chat).
+3. (Optional) Set up Telegram/Discord webhooks for notifications.
+
+---
+
+## 4. Run Tests
+
+To verify everything is working:
+
+```bash
+# Install test dependencies locally if needed
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+
+# Run unit tests
+pytest backend/tests/
+```

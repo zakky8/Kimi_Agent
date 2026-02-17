@@ -1,49 +1,56 @@
-# 🤖 AI Trading Agent Pro v2 - File Structure
+# 📂 Project File Structure (v3.0)
 
-## Root Workspace (`Kimi_Agent/`)
+## Backend (`/backend`)
 
-| File | Purpose |
-|------|---------|
-| `README.md` | Root-level documentation |
-| `QUICK_START.md` | Entry point for new users |
-| `FILE_STRUCTURE.md` | Detailed project map (this file) |
-| `trading-agent-pro-v2/` | **Active Core Project Directory** |
+The backend is built with **FastAPI** and follows a modular service-oriented architecture.
 
-## Core Project (`trading-agent-pro-v2/`)
+### core/
+| Path | Description |
+|---|---|
+| `app/main.py` | **Entry Point** — FastAPI app & lifecycle manager |
+| `app/config.py` | Configuration settings (loads from `.env`) |
+| `app/api/` | REST API routes (`routes.py`) |
 
-### Root Files
-| File | Purpose |
-|------|---------|
-| `.env.example` | Environment template |
-| `.gitignore` | Git exclusion rules |
-| `Dockerfile` | Container configuration |
-| `docker-compose.yml` | Multi-container orchestration |
-| `nginx.conf` | Web server config |
-| `LICENSE` | MIT License |
+### services/ (v3.0 Modular Architecture)
+| Path | Description |
+|---|---|
+| `market_data/` | **Data Ingestion** — `ingestion.py` (Binance, YFinance, Scraper) |
+| `analysis/` | **Technical Analysis** — `indicators.py` (TA-Lib), `confluence.py` |
+| `ml/` | **Machine Learning** — `models.py` (LSTM/XGB), `online_learner.py` |
+| `signals/` | **Signal Logic** — `generator.py` (Entry, Exit, Sizing) |
+| `agents/` | **Orchestrator** — `orchestrator.py` (5-agent consensus) |
+| `learning/` | **Self-improvement** — `mistake_tracker.py`, `learning_engine.py` |
+| `browser/` | **Automation** — `automated_scraper.py` (Playwright) |
+| `backtest/` | **Simulation** — `engine.py` (Vectorised backtester) |
+| `charts/` | **Pattern Recog** — `analyser.py` (Triangle/H&S detection) |
 
-### Backend (`backend/`)
-| Directory | Purpose |
-|-----------|---------|
-| `app/ai_engine/` | LLM clients & Signal generation logic |
-| `app/analysis/` | SMC (Liquidity, OB, FVG) & Technical analysis |
-| `app/api/` | FastAPI REST endpoints (Port 8001) |
-| `app/browser_automation/` | Playwright & Selenium scrapers |
-| `app/core/` | System configuration & Schedulers |
-| `app/data_collection/` | Binance, Telegram, Reddit, RSS collectors |
-| `app/services/` | Market data & live price services |
-| `app/websocket/` | Real-time price streaming server |
-| `tests/` | Automated unit & integration tests |
-| `data/` | Persistent storage (settings, chat history) |
+### legacy/ & support
+| Path | Description |
+|---|---|
+| `app/ai_engine/` | **Legacy v2 Agent** — `agent.py` (Swarm v2 monitoring loop) |
+| `app/shared/` | Data schemas (`candle.py`, `signal.py`) |
+| `app/mt5_client.py` | MetaTrader 5 client wrapper |
 
-### Frontend (`frontend/`)
-| Directory | Purpose |
-|-----------|---------|
-| `src/pages/` | Dashboard, Signals, Analysis, Chat, Settings |
-| `src/components/` | Visual UI components (Charts, Cards, Layout) |
-| `src/hooks/` | API interaction & WebSocket hooks |
-| `vite.config.ts` | Frontend build & proxy config (Port 3000) |
+---
 
-## Access Information
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8001
-- **API Docs**: http://localhost:8001/docs
+## Frontend (`/frontend`)
+
+Built with **React 18**, **Vite**, and **TailwindCSS**.
+
+| Path | Description |
+|---|---|
+| `src/components/` | React components (Dashboard, Panels, Charts) |
+| `src/hooks/` | Custom hooks (`useAgentStatus`, `useMarketData`) |
+| `src/services/` | API client services |
+| `src/data/` | Mock data and constants |
+
+---
+
+## Infrastructure
+
+| File | Description |
+|---|---|
+| `docker-compose.dev.yml` | **Development** stack (Hot-reload, Postgres, Redis, MLflow) |
+| `docker-compose.yml` | **Production** stack |
+| `Dockerfile` | Multi-stage Python build |
+| `.env.example` | Configuration template (**Security Note**: Set `POSTGRES_PASSWORD`!) |
