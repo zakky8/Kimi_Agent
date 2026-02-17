@@ -1,30 +1,198 @@
 """
 Control Panel API Routes for Multi-Agent Management
+(v3.0 — cleaned up legacy imports)
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import asyncio
+import json
+from pathlib import Path
 from openai import AsyncOpenAI
 import logging
 import pandas as pd
+import yfinance as yf
 
 from datetime import datetime
 from ..ai_engine.agent import get_swarm, AIAgent, AgentStatus
 from ..ai_engine.signal_generator import SignalGenerator
 from ..mt5_client import MT5Client
-from ..config import settings # Assuming settings from config.py
-from ..core.chat_history_manager import chat_history_manager
-from ..core.settings_manager import settings_manager
-from ..services.market_data import get_market_data, get_institutional_context
+from ..config import settings
 try:
     import google.generativeai as genai
 except ImportError:
     genai = None
 
+try:
+    import ccxt.async_support as ccxt
+except ImportError:
+    ccxt = None
+
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["control_panel"])
+
+# ─── Inline lightweight utilities (replaced legacy core/ modules) ───────────
+
+_HISTORY_PATH = Path("./data/chat_history.json")
+_SETTINGS_PATH = Path("./data/settings.json")
+
+
+class _ChatHistoryManager:
+    """Minimal in-memory + JSON chat history (replaced core/chat_history_manager.py)."""
+
+    def __init__(self):
+        self._history: List[Dict] = []
+        self._load()
+
+    def _load(self):
+        try:
+            if _HISTORY_PATH.exists():
+                self._history = json.loads(_HISTORY_PATH.read_text())
+        except Exception:
+            self._history = []
+
+    def save_message(self, msg: Dict):
+        self._history.append(msg)
+        try:
+            _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+            _HISTORY_PATH.write_text(json.dumps(self._history[-500:], default=str))
+        except Exception:
+            pass
+
+    def load_history(self) -> List[Dict]:
+        return self._history[-100:]
+
+    def clear_history(self):
+        self._history.clear()
+        try:
+            _HISTORY_PATH.write_text("[]")
+        except Exception:
+            pass
+
+
+class _SettingsManager:
+    """Minimal JSON settings persister (replaced core/settings_manager.py)."""
+
+    def save_settings(self, updates: Dict):
+        try:
+            existing = {}
+            if _SETTINGS_PATH.exists():
+                existing = json.loads(_SETTINGS_PATH.read_text())
+            existing.update(updates)
+            _SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            _SETTINGS_PATH.write_text(json.dumps(existing, indent=2, default=str))
+        except Exception as e:
+            logger.error(f"Failed to persist settings: {e}")
+            raise
+
+
+chat_history_manager = _ChatHistoryManager()
+settings_manager = _SettingsManager()
+
+
+# ─── Inline market data helpers (replaced services/market_data.py) ──────────
+
+def _calculate_rsi(series, period=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
+
+
+def _calculate_macd(series, fast=12, slow=26, signal=9):
+    exp1 = series.ewm(span=fast, adjust=False).mean()
+    exp2 = series.ewm(span=slow, adjust=False).mean()
+    macd = exp1 - exp2
+    signal_line = macd.ewm(span=signal, adjust=False).mean()
+    return macd, signal_line
+
+
+async def get_crypto_data(symbol: str):
+    if ccxt is None:
+        return None
+    exchange = ccxt.binance()
+    try:
+        ticker = await exchange.fetch_ticker(symbol)
+        ohlcv = await exchange.fetch_ohlcv(symbol, timeframe="1h", limit=100)
+        await exchange.close()
+        if not ticker or not ohlcv:
+            return None
+        df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df["rsi"] = _calculate_rsi(df["close"])
+        macd, signal = _calculate_macd(df["close"])
+        rsi_val = df["rsi"].iloc[-1]
+        if pd.isna(rsi_val):
+            rsi_val = 50.0
+        return {
+            "source": "Binance",
+            "symbol": symbol,
+            "price": ticker["last"],
+            "rsi": round(rsi_val, 2),
+            "macd": "Bullish" if macd.iloc[-1] > signal.iloc[-1] else "Bearish",
+            "ma_50": df["close"].rolling(50).mean().iloc[-1],
+        }
+    except Exception as e:
+        await exchange.close()
+        logger.error(f"CCXT Error: {e}")
+        return None
+
+
+async def get_yfinance_data(symbol: str):
+    ticker_map = {
+        "XAUUSD": "GC=F", "GOLD": "GC=F",
+        "BTCUSDT": "BTC-USD", "ETHUSDT": "ETH-USD",
+        "DXY": "DX-Y.NYB",
+    }
+    yf_symbol = ticker_map.get(symbol, symbol)
+    try:
+        def _fetch():
+            return yf.Ticker(yf_symbol).history(period="1mo", interval="1h")
+        hist = await asyncio.to_thread(_fetch)
+        if hist.empty:
+            return None
+        price = hist["Close"].iloc[-1]
+        hist["rsi"] = _calculate_rsi(hist["Close"])
+        macd, signal = _calculate_macd(hist["Close"])
+        rsi_val = hist["rsi"].iloc[-1]
+        if pd.isna(rsi_val):
+            rsi_val = 50.0
+        return {
+            "source": "Yahoo Finance (Delayed)",
+            "symbol": symbol,
+            "price": round(price, 2),
+            "rsi": round(rsi_val, 2),
+            "macd": "Bullish" if macd.iloc[-1] > signal.iloc[-1] else "Bearish",
+        }
+    except Exception as e:
+        logger.error(f"YFinance Error for {yf_symbol}: {e}")
+        return None
+
+
+async def get_market_data(symbol: str):
+    symbol = symbol.upper().replace("-", "")
+    if symbol == "BTC":
+        symbol = "BTC/USDT"
+    if symbol == "ETH":
+        symbol = "ETH/USDT"
+    if symbol.endswith("USDT") and "/" not in symbol:
+        symbol = symbol.replace("USDT", "/USDT")
+    try:
+        if "/" in symbol and ccxt:
+            return await get_crypto_data(symbol)
+        return await get_yfinance_data(symbol)
+    except Exception as e:
+        logger.error(f"Error fetching data for {symbol}: {e}")
+        return None
+
+
+async def get_institutional_context():
+    dxy = await get_yfinance_data("DXY")
+    return {
+        "dxy": dxy,
+        "sentiment": "Risk On" if dxy and dxy.get("macd") == "Bearish" else "Risk Off",
+    }
 
 # Helper to get swarm
 def get_swarm_instance():
@@ -438,8 +606,7 @@ async def chat_message(request: ChatMessageRequest):
 
     elif settings.OPENROUTER_API_KEY:
         try:
-            print(f"DEBUG: Using OpenRouter Key: {settings.OPENROUTER_API_KEY[:10]}... (Len: {len(settings.OPENROUTER_API_KEY)})")
-            print(f"DEBUG: Model: {settings.DEFAULT_AI_MODEL}")
+            logger.debug(f"Using OpenRouter with model: {settings.DEFAULT_AI_MODEL}")
             
             client = AsyncOpenAI(
                 base_url="https://openrouter.ai/api/v1",
@@ -464,7 +631,7 @@ async def chat_message(request: ChatMessageRequest):
                 if 'ma_50' in real_data:
                      market_context += f"• MA(50): {real_data['ma_50']:.2f}\n"
 
-            print(f"DEBUG: Context for AI:\n{market_context}")
+            logger.debug(f"Context for AI: {market_context[:200]}...")
 
             messages = [
                 {"role": "system", "content": f"You are an expert AI trading assistant provided by 'AI Trading Agent Pro'. \n\n{market_context}\n\nUse this data to provide accurate, professional analysis. If the data is valid, base your signal on it. Format responses in Markdown."},
@@ -484,7 +651,7 @@ async def chat_message(request: ChatMessageRequest):
             }
         except Exception as e:
             logger.error(f"OpenRouter Error: {e}")
-            print(f"DEBUG EXCEPTION: {e}")
+            logger.debug(f"OpenRouter exception detail: {e}")
             response = {
                 "message": f"⚠️ **AI Error**: Failed to connect to OpenRouter.\nError: {str(e)}",
                 "type": "error",

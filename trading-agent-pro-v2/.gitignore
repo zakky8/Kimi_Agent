@@ -49,6 +49,10 @@ data/
 # Screenshots
 screenshots/
 
+# ML models & tracking
+models/
+mlflow/
+
 # Telegram Session
 telegram_session.session
 *.session

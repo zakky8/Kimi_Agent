@@ -15,11 +15,38 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 
 from .signal_generator import SignalGenerator, TradingSignal, OrderBlockType
-from ..core.trade_history_manager import trade_history_manager
-from ..services.market_data import get_institutional_context
-# Assuming these exist or will be created
-# from ..mt5_client import MT5Client 
-# Need to check where MT5Client is actually located in the folder structure
+# Inline trade history manager (replaced deleted core/trade_history_manager.py)
+import json as _json
+from pathlib import Path as _Path
+
+_TRADE_HISTORY_PATH = _Path("./data/trade_history.json")
+
+
+class _TradeHistoryManager:
+    """Lightweight trade history storage."""
+
+    def save_trade(self, trade: Dict):
+        try:
+            _TRADE_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+            history = []
+            if _TRADE_HISTORY_PATH.exists():
+                history = _json.loads(_TRADE_HISTORY_PATH.read_text())
+            history.append({k: str(v) for k, v in trade.items()})
+            _TRADE_HISTORY_PATH.write_text(_json.dumps(history[-500:], indent=2))
+        except Exception:
+            pass
+
+    def get_recent_mistakes(self, agent_id: str) -> List[Dict]:
+        try:
+            if _TRADE_HISTORY_PATH.exists():
+                history = _json.loads(_TRADE_HISTORY_PATH.read_text())
+                return [t for t in history if t.get("profit", 0) < 0][-10:]
+        except Exception:
+            pass
+        return []
+
+
+trade_history_manager = _TradeHistoryManager()
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +295,7 @@ class AIAgent:
         """
         try:
             # 1. Multi-Intermarket Context (DXY, Sentiment)
-            inst_context = await get_institutional_context()
+            inst_context = await self._get_institutional_context()
             
             # 2. Institutional Volume Profile Analysis
             vol_zones = self.signal_generator.identify_institutional_volume_zones(df)
@@ -317,6 +344,29 @@ class AIAgent:
         except Exception as e:
             logger.error(f"Error generating signals for {self.symbol}: {e}")
             return None
+
+    @staticmethod
+    async def _get_institutional_context() -> Dict:
+        """Inline institutional context (DXY) lookup via yfinance."""
+        try:
+            import yfinance as yf
+
+            def _fetch_dxy():
+                hist = yf.Ticker("DX-Y.NYB").history(period="5d", interval="1h")
+                if hist.empty:
+                    return None
+                price = hist["Close"].iloc[-1]
+                ema12 = hist["Close"].ewm(span=12).mean().iloc[-1]
+                ema26 = hist["Close"].ewm(span=26).mean().iloc[-1]
+                return {"price": round(price, 2), "macd": "Bullish" if ema12 > ema26 else "Bearish"}
+
+            dxy = await asyncio.to_thread(_fetch_dxy)
+            return {
+                "dxy": dxy,
+                "sentiment": "Risk On" if dxy and dxy.get("macd") == "Bearish" else "Risk Off",
+            }
+        except Exception:
+            return {"dxy": None, "sentiment": "Unknown"}
 
     async def _is_repeating_mistake(self, signal: TradingSignal, df: pd.DataFrame) -> bool:
         """Heuristic check against known failure patterns"""
