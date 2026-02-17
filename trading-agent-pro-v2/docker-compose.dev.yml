@@ -1,7 +1,10 @@
 # ================================================================
-# Kimi Agent — Docker Compose (Development)
+# Kimi Agent v3.0 — Docker Compose (Development)
 # ================================================================
 # Usage:  docker-compose -f docker-compose.dev.yml up -d
+#
+# Includes: PostgreSQL/TimescaleDB, Redis, Kafka, MLflow,
+#           Backend (hot-reload), Frontend (dev server)
 # ================================================================
 
 version: "3.9"
@@ -21,8 +24,9 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./backend/migrations:/docker-entrypoint-initdb.d/migrations:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kimi -d kimi_agent"]
+      test: [ "CMD-SHELL", "pg_isready -U kimi -d kimi_agent" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,7 +41,7 @@ services:
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,7 +57,7 @@ services:
     volumes:
       - zkdata:/var/lib/zookeeper/data
     healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      test: [ "CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -77,7 +81,7 @@ services:
     volumes:
       - kafkadata:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      test: [ "CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list" ]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -104,11 +108,12 @@ services:
         --backend-store-uri postgresql://kimi:${POSTGRES_PASSWORD:-kimi_dev_pass}@postgres:5432/kimi_agent
         --default-artifact-root /mlflow/artifacts
 
-  # ── Backend (FastAPI) ─────────────────────────────────────────
+  # ── Backend (FastAPI — hot reload) ────────────────────────────
   backend:
     build:
       context: .
       dockerfile: Dockerfile
+      target: backend
     container_name: kimi_backend
     restart: unless-stopped
     ports:
@@ -117,12 +122,13 @@ services:
     env_file:
       - .env
     environment:
+      APP_VERSION: 3.0.0
       DATABASE_URL: postgresql+asyncpg://kimi:${POSTGRES_PASSWORD:-kimi_dev_pass}@postgres:5432/kimi_agent
       REDIS_URL: redis://redis:6379/0
       KAFKA_BROKERS: kafka:9092
       MLFLOW_TRACKING_URI: http://mlflow:5000
     volumes:
-      - ./backend:/app
+      - ./backend:/app/backend
       - modeldata:/app/models
       - histdata:/app/data
     depends_on:
@@ -132,6 +138,11 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ── Frontend (React Dev Server) ───────────────────────────────
   frontend:

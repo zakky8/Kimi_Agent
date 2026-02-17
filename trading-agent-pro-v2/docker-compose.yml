@@ -1,3 +1,9 @@
+# ================================================================
+# Kimi Agent v3.0 — Docker Compose (Production)
+# ================================================================
+# Usage:  docker-compose up -d
+# ================================================================
+
 version: '3.8'
 
 services:
@@ -6,39 +12,46 @@ services:
       context: .
       dockerfile: Dockerfile
       target: backend
-    container_name: trading-agent-backend
+    container_name: kimi-agent-backend
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-      - ./screenshots:/app/screenshots
+      - ./models:/app/models
       - ./.env:/app/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - APP_VERSION=3.0.0
     restart: unless-stopped
     networks:
-      - trading-network
+      - kimi-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
       target: production
-    container_name: trading-agent-frontend
+    container_name: kimi-agent-frontend
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     networks:
-      - trading-network
+      - kimi-network
 
 networks:
-  trading-network:
+  kimi-network:
     driver: bridge
 
 volumes:
   data:
   logs:
-  screenshots:
+  models:

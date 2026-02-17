@@ -1,47 +1,58 @@
-# 🤖 AI Trading Agent Pro v2
+# 🧠 Kimi Agent v3.0 — AI Trading Intelligence Platform
 
-A comprehensive, fully automated AI-powered trading agent with advanced technical analysis, browser automation, multi-source data collection, and 24/7 market monitoring.
+A fully autonomous, self-improving AI trading agent featuring multi-agent consensus, 40+ technical indicators, ML ensemble predictions, chart pattern recognition, vectorised backtesting, and a real-time React dashboard.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-green.svg)
 ![React](https://img.shields.io/badge/react-18+-cyan.svg)
 ![License](https://img.shields.io/badge/license-MIT-yellow.svg)
 
-## ✨ Features
+---
 
-### 🔍 Advanced Technical Analysis
-- **Liquidity Zones** - Detect buy-side and sell-side liquidity pools
-- **Order Blocks** - Identify bullish and bearish order blocks (Smart Money Concepts)
-- **Fair Value Gaps (FVG)** - Find price imbalances for high-probability entries
-- **Price Action Patterns** - Recognize engulfing, pin bars, doji, and more
-- **Market Structure** - Track market structure breaks and changes of character
+## ✨ What's New in v3.0
 
-### 🤖 AI-Powered Agent
-- **Multi-Provider AI** - Support for OpenRouter, Gemini, Groq, and Anthropic
-- **24/7 Monitoring** - Continuous market surveillance
-- **Chat Interface** - Interactive AI assistant with image analysis
-- **Signal Generation** - AI-driven trading signals with confidence scores
-- **Full System Control** - Agent can access all system functions
+| Feature | Description |
+|---------|-------------|
+| 🔓 **Free Data Sources** | Binance WebSocket, yfinance, headless browser scraping — no paid APIs needed |
+| 📊 **40+ Indicators** | Trend, momentum, volatility, volume, S/R, and candlestick pattern detection |
+| 🧮 **Multi-TF Confluence** | Weighted scoring across D1 (35%), H4 (25%), H1 (20%), M15 (12%), M5 (8%) |
+| 🤖 **ML Ensemble** | LSTM, XGBoost, Random Forest, PPO (RL stub) with weighted voting |
+| 🧠 **5-Agent Orchestrator** | Data, Technical, Sentiment, ML, Risk agents with veto power + ≥3/5 consensus |
+| 📡 **Signal Generator** | ATR-based SL, dynamic R:R targets, 1% risk position sizing |
+| 🔄 **Self-Improving Loop** | Online learning, mistake tracking, performance kill switch |
+| 🌐 **Browser Automation** | Playwright-powered CoinGlass scraping (funding rates, OI) |
+| 📈 **Chart Patterns** | Double top/bottom, H&S, triangles, wedges, channels |
+| 🧪 **Vectorised Backtester** | Simulated trades with SL/TP, slippage, commissions, equity curves |
+| 🖥️ **Dashboard Upgrade** | Agent consensus panel, performance tracker, mistake log, evolution timeline |
+| ✅ **Unit Tests** | 40+ test cases across 6 test files |
 
-### 🌐 Browser Automation
-- **System Browser** - Uses your local Chrome/Edge/Firefox (no APIs needed)
-- **Playwright + Selenium** - Dual automation engines for reliability
-- **Forex Factory Calendar** - Scraped with IST timezone conversion
-- **Web Research** - Automated research and documentation access
+---
 
-### 📱 Data Collection
-- **Telegram Multi-Channel** - Real-time data from unlimited channels
-- **Reddit Integration** - Subreddit monitoring and sentiment analysis
-- **RSS Feeds** - News aggregation from multiple sources
-- **Binance API** - Real-time crypto market data
-- **Alpha Vantage** - Forex data with technical indicators
+## 🏗️ Architecture
 
-### 📊 Dashboard & Monitoring
-- **Real-time Dashboard** - Live market prices and system status
-- **Trading Signals** - View and manage AI-generated signals
-- **Analysis Tools** - Interactive liquidity, OB, and FVG visualization
-- **Forex Calendar** - Economic events with IST timezone
-- **24/7 Monitoring Control** - Start/stop/pause automation
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                          Kimi Agent v3.0                                  │
+├───────────────┬───────────────┬──────────────┬────────────────────────────┤
+│   DATA LAYER  │ ANALYSIS LAYER│   ML LAYER   │     DECISION LAYER        │
+├───────────────┼───────────────┼──────────────┼────────────────────────────┤
+│ Binance WS    │ 40+ Indicators│ LSTM         │ DataAgent                 │
+│ yfinance      │ Confluence    │ XGBoost      │ TechnicalAgent            │
+│ Browser Scrape│ Chart Patterns│ RandomForest │ SentimentAgent            │
+│               │ S/R Levels    │ PPO (RL)     │ MLAgent                   │
+│               │               │ Ensemble     │ RiskAgent (veto power)    │
+├───────────────┴───────────────┴──────────────┼────────────────────────────┤
+│              SIGNAL GENERATOR                │    LEARNING ENGINE        │
+│  ATR SL · Dynamic TP · 1% Risk Sizing       │ OnlineLearner · Mistakes  │
+│                                              │ PerformanceTracker        │
+│                                              │ Kill Switch               │
+├──────────────────────────────────────────────┴────────────────────────────┤
+│                     BACKTEST ENGINE (vectorised)                          │
+│            Simulated trades · Equity curve · Sharpe · Max DD             │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## 📁 File Structure
 
@@ -50,259 +61,270 @@ trading-agent-pro-v2/
 ├── 📂 backend/
 │   ├── 📂 app/
 │   │   ├── 📂 ai_engine/
-│   │   │   ├── agent.py              # AI agent with 24/7 monitoring
-│   │   │   ├── llm_client.py         # Multi-provider LLM client
-│   │   │   └── signal_generator.py   # Trading signal generation
-│   │   ├── 📂 analysis/
-│   │   │   ├── liquidity_analysis.py # Liquidity zone detection
-│   │   │   ├── price_action.py       # Price action patterns
-│   │   │   └── technical_indicators.py # Technical indicators
+│   │   │   ├── agent.py                # AI agent with 24/7 monitoring
+│   │   │   ├── llm_client.py           # Multi-provider LLM client
+│   │   │   └── signal_generator.py     # Legacy signal generation
+│   │   ├── 📂 services/
+│   │   │   ├── 📂 analysis/
+│   │   │   │   ├── indicators.py       # ★ 40+ technical indicators (NaN-safe)
+│   │   │   │   └── confluence.py       # ★ Multi-TF weighted confluence
+│   │   │   ├── 📂 ml/
+│   │   │   │   └── models.py           # ★ LSTM, XGB, RF, PPO, Ensemble
+│   │   │   ├── 📂 agents/
+│   │   │   │   └── orchestrator.py     # ★ 5-agent consensus orchestrator
+│   │   │   ├── 📂 signals/
+│   │   │   │   └── generator.py        # ★ ATR SL, R:R TP, position sizing
+│   │   │   ├── 📂 learning/
+│   │   │   │   └── learning_engine.py  # ★ Online learner + mistake tracker
+│   │   │   ├── 📂 browser/
+│   │   │   │   └── automated_scraper.py # ★ Playwright CoinGlass scraper
+│   │   │   ├── 📂 charts/
+│   │   │   │   └── analyser.py         # ★ Chart pattern detector
+│   │   │   ├── 📂 backtest/
+│   │   │   │   └── engine.py           # ★ Vectorised backtester
+│   │   │   └── 📂 market_data/
+│   │   │       └── ingestion.py        # ★ Binance WS + yfinance + browser
+│   │   ├── 📂 analysis/                # Legacy SMC analysis
 │   │   ├── 📂 api/
-│   │   │   └── routes.py             # FastAPI endpoints
-│   │   ├── 📂 browser_automation/
-│   │   │   ├── system_browser.py     # System browser automation
-│   │   │   └── forex_factory.py      # Forex Factory scraper
-│   │   ├── 📂 data_collection/
-│   │   │   ├── telegram_collector.py # Multi-channel Telegram
-│   │   │   ├── reddit_collector.py   # Reddit data collection
-│   │   │   ├── news_collector.py     # RSS news feeds
-│   │   │   └── market_data.py        # Market data providers
-│   │   ├── config.py                 # Configuration settings
-│   │   └── __init__.py
-│   ├── main.py                       # FastAPI entry point
-│   └── requirements.txt              # Python dependencies
+│   │   │   └── routes.py               # FastAPI endpoints
+│   │   ├── config.py                   # Configuration settings
+│   │   └── main.py                     # ★ Full lifecycle + analysis loop
+│   ├── 📂 migrations/
+│   │   ├── 001_initial.sql             # Base schema
+│   │   └── 002_agent_evolution.sql     # ★ Evolution + mistakes tables
+│   ├── 📂 tests/
+│   │   ├── test_indicators.py          # ★ Indicator tests (14 cases)
+│   │   ├── test_confluence.py          # ★ Confluence tests (5 cases)
+│   │   ├── test_chart_analyser.py      # ★ Chart pattern tests (6 cases)
+│   │   ├── test_backtest.py            # ★ Backtest tests (7 cases)
+│   │   ├── test_learning.py            # ★ Learning engine tests (9 cases)
+│   │   └── test_ml_models.py           # ★ ML model tests (8 cases)
+│   └── requirements.txt               # Python dependencies (100+)
 ├── 📂 frontend/
 │   ├── 📂 src/
 │   │   ├── 📂 components/
-│   │   │   ├── Layout.tsx            # Main layout component
-│   │   │   ├── Sidebar.tsx           # Navigation sidebar
-│   │   │   └── Header.tsx            # Top header
+│   │   │   ├── AgentStatusPanel.tsx    # ★ Multi-agent consensus panel
+│   │   │   ├── PerformancePanel.tsx    # ★ P&L + equity curve + metrics
+│   │   │   ├── MistakeLog.tsx          # ★ Mistake tracker UI
+│   │   │   ├── EvolutionLog.tsx        # ★ AI self-improvement timeline
+│   │   │   ├── Layout.tsx              # Main layout
+│   │   │   ├── Sidebar.tsx             # Navigation sidebar
+│   │   │   └── Header.tsx              # Top header
 │   │   ├── 📂 pages/
-│   │   │   ├── Dashboard.tsx         # Main dashboard
-│   │   │   ├── Chat.tsx              # AI chat interface
-│   │   │   ├── Signals.tsx           # Trading signals
-│   │   │   ├── Analysis.tsx          # Technical analysis
-│   │   │   ├── Calendar.tsx          # Forex calendar
-│   │   │   ├── Monitoring.tsx        # 24/7 monitoring control
-│   │   │   └── Settings.tsx          # Settings dashboard
-│   │   ├── App.tsx                   # React app entry
-│   │   ├── main.tsx                  # React DOM entry
-│   │   └── index.css                 # Global styles
-│   ├── index.html                    # HTML template
-│   ├── package.json                  # Node dependencies
-│   ├── vite.config.ts                # Vite configuration
-│   └── tailwind.config.js            # Tailwind CSS config
+│   │   │   ├── Dashboard.tsx           # ★ Enhanced with 4 new panels
+│   │   │   ├── Chat.tsx                # AI chat interface
+│   │   │   ├── Signals.tsx             # Trading signals
+│   │   │   ├── Analysis.tsx            # Technical analysis
+│   │   │   ├── Calendar.tsx            # Forex calendar
+│   │   │   ├── Monitoring.tsx          # 24/7 monitoring control
+│   │   │   └── Settings.tsx            # Settings
+│   │   ├── App.tsx                     # React app entry
+│   │   ├── main.tsx                    # React DOM entry
+│   │   └── index.css                   # Global styles (dark theme)
+│   ├── package.json                    # Node dependencies
+│   ├── vite.config.ts                  # Vite configuration
+│   └── tailwind.config.js             # Tailwind CSS config
+├── 📂 db/
+│   └── init.sql                        # Database initialisation
 ├── 📂 scripts/
-│   ├── install.sh                    # Linux/macOS installer
-│   ├── install.bat                   # Windows installer
-│   ├── start_backend.sh              # Start backend (Unix)
-│   ├── start_backend.bat             # Start backend (Windows)
-│   ├── start_frontend.sh             # Start frontend (Unix)
-│   ├── start_frontend.bat            # Start frontend (Windows)
-│   ├── start_all.sh                  # Start all services (Unix)
-│   └── start_all.bat                 # Start all services (Windows)
-├── 📂 data/                          # Data storage
-├── 📂 logs/                          # Log files
-├── 📂 screenshots/                   # Browser screenshots
-├── .env.example                      # Environment template
-├── .gitignore                        # Git ignore rules
-├── Dockerfile                        # Docker build file
-├── docker-compose.yml                # Docker Compose config
-├── nginx.conf                        # Nginx configuration
-└── README.md                         # This file
+│   ├── install.sh / install.bat        # Installers
+│   ├── start_backend.sh / .bat         # Backend launchers
+│   ├── start_frontend.sh / .bat        # Frontend launchers
+│   └── start_all.sh / .bat             # Full stack launchers
+├── .env.example                        # Environment template
+├── .gitignore                          # Git ignore rules
+├── Dockerfile                          # Multi-stage Docker build
+├── docker-compose.yml                  # Production compose
+├── docker-compose.dev.yml              # Dev compose (PG, Redis, Kafka, MLflow)
+├── nginx.conf                          # Nginx reverse proxy
+├── CHANGELOG.md                        # Version history
+├── LICENSE                             # MIT License
+└── README.md                           # This file
 ```
 
-## 🚀 Installation
+> **★** = New or significantly modified in v3.0
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.10 or higher
-- Node.js 18 or higher
-- Chrome, Edge, or Firefox browser
-- Git (optional)
+- Python 3.10+
+- Node.js 18+
+- Git
 
-### Windows Installation
+### 1. Clone & Install
 
-1. **Clone or download the repository**
-   ```bash
-   git clone <repository-url>
-   cd trading-agent-pro-v2
-   ```
-
-2. **Run the installer**
-   ```bash
-   cd scripts
-   install.bat
-   ```
-
-3. **Configure API keys**
-   - Open `.env` file in the root directory
-   - Add your API keys (see Configuration section)
-
-4. **Start the application**
-   ```bash
-   start_all.bat
-   ```
-
-### Linux/macOS Installation
-
-1. **Clone or download the repository**
-   ```bash
-   git clone <repository-url>
-   cd trading-agent-pro-v2
-   ```
-
-2. **Run the installer**
-   ```bash
-   cd scripts
-   chmod +x install.sh
-   ./install.sh
-   ```
-
-3. **Configure API keys**
-   ```bash
-   nano ../.env
-   ```
-
-4. **Start the application**
-   ```bash
-   ./start_all.sh
-   ```
-
-### Docker Installation
-
-1. **Build and run with Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
-
-2. **Access the application**
-   - Frontend: http://localhost
-   - Backend API: http://localhost:8001
-   - API Docs: http://localhost:8001/docs
-
-## ⚙️ Configuration
-
-### AI Providers (Free Tiers Available)
-
-| Provider | Website | Free Tier |
-|----------|---------|-----------|
-| OpenRouter | https://openrouter.ai | $5 credits |
-| Gemini | https://makersuite.google.com | 60 req/min |
-| Groq | https://console.groq.com | 1M tokens/day |
-| Anthropic | https://console.anthropic.com | $5 credits |
-
-### Trading APIs
-
-| Service | Website | Free Tier |
-|---------|---------|-----------|
-| Binance | https://binance.com | Full access |
-| Alpha Vantage | https://alphavantage.co | 25 calls/day |
-
-### Telegram API
-
-1. Go to https://my.telegram.org/apps
-2. Create a new application
-3. Copy `api_id` and `api_hash`
-4. Add to `.env` file
-
-### MetaTrader 5
-
-1. Enable in `.env`: `MT5_ENABLED=true`
-2. Add your MT5 account credentials
-3. Ensure MT5 desktop is installed
-
-## 🖥️ Usage
-
-### Dashboard
-- View real-time market prices
-- Monitor system status
-- See recent trading signals
-- Track win rate and P&L
-
-### AI Chat
-- Chat with the AI trading agent
-- Upload charts for analysis
-- Start/stop 24/7 monitoring
-- Get market insights
-
-### Trading Signals
-- View all generated signals
-- Filter by status (active/pending/completed)
-- See entry, stop loss, and take profit levels
-- Track confidence scores
-
-### Technical Analysis
-- **Liquidity Zones** - View buy/side liquidity pools
-- **Order Blocks** - See bullish/bearish OBs
-- **Fair Value Gaps** - Monitor FVGs and fill status
-- **Price Action** - Recognized patterns
-
-### Forex Calendar
-- Economic events from Forex Factory
-- IST timezone conversion
-- High/medium/low impact filtering
-- Actual/forecast/previous data
-
-### 24/7 Monitoring
-- Start/pause/stop automation
-- View live logs
-- Monitor service status
-- Track uptime and tasks
-
-### Settings
-- Configure AI providers
-- Add trading API keys
-- Set up Telegram channels
-- Manage risk parameters
-
-## 🔌 API Endpoints
-
-### Agent Control
-- `POST /api/agent/start` - Start 24/7 monitoring
-- `POST /api/agent/stop` - Stop monitoring
-- `GET /api/agent/status` - Get agent status
-
-### Chat
-- `POST /api/chat/message` - Send chat message
-- `POST /api/chat/analyze-image` - Analyze uploaded image
-- `GET /api/chat/history` - Get chat history
-
-### Analysis
-- `GET /api/analysis/liquidity/{pair}` - Get liquidity zones
-- `GET /api/analysis/orderblocks/{pair}` - Get order blocks
-- `GET /api/analysis/fvg/{pair}` - Get fair value gaps
-- `GET /api/analysis/price-action/{pair}` - Get price action patterns
-
-### Calendar
-- `GET /api/calendar/events` - Get economic events
-- `GET /api/calendar/today` - Get today's events
-
-### Signals
-- `GET /api/signals` - Get all signals
-- `GET /api/signals/active` - Get active signals
-- `POST /api/signals/generate` - Generate new signal
-
-## 🛠️ Development
-
-### Backend Development
 ```bash
+git clone https://github.com/zakky8/Kimi_Agent.git
+cd Kimi_Agent/trading-agent-pro-v2
+
+# Backend
 cd backend
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-uvicorn main:app --reload
+python -m venv venv
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # Linux/macOS
+pip install -r requirements.txt
+playwright install chromium     # Optional: for browser scraping
+
+# Frontend
+cd ../frontend
+npm install
 ```
 
-### Frontend Development
+### 2. Configure
+
 ```bash
+cp .env.example .env
+# Edit .env with your API keys
+```
+
+### 3. Run
+
+```bash
+# Terminal 1 — Backend
+cd backend
+uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 — Frontend
 cd frontend
-npm install
 npm run dev
 ```
 
-### Running Tests
+### 4. Access
+- **Dashboard**: http://localhost:5173
+- **API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/api/v1/health
+
+### Docker (Full Stack)
+
+```bash
+# Production
+docker-compose up -d
+
+# Development (includes PostgreSQL, Redis, Kafka, MLflow)
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+---
+
+## ⚙️ Configuration
+
+### Free Data Sources (no API keys required)
+
+| Source | Data | Notes |
+|--------|------|-------|
+| Binance WebSocket | BTC/ETH real-time OHLCV | Free, no key needed |
+| yfinance | Forex, stocks, indices | ~15m delayed, free |
+| Browser Scraper | CoinGlass funding/OI | Playwright headless |
+
+### AI Providers (Free Tiers Available)
+
+| Provider | Free Tier | Website |
+|----------|-----------|---------|
+| OpenRouter | $5 credits | https://openrouter.ai |
+| Gemini | 60 req/min | https://makersuite.google.com |
+| Groq | 1M tokens/day | https://console.groq.com |
+| Anthropic | $5 credits | https://console.anthropic.com |
+| OpenAI | Pay-as-you-go | https://platform.openai.com |
+
+### Trading APIs
+
+| Service | Free Tier | Website |
+|---------|-----------|---------|
+| Binance | Full access | https://binance.com |
+| CCXT | Multi-exchange | https://ccxt.readthedocs.io |
+
+---
+
+## 🔌 API Endpoints
+
+### v3.0 Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/health` | System health + uptime |
+| `GET` | `/api/v1/performance` | Win rate, P&L, Sharpe, drawdown |
+| `GET` | `/api/v1/mistakes` | Mistake patterns + corrective actions |
+| `GET` | `/api/v1/consensus/latest` | Multi-agent consensus result |
+| `GET` | `/api/v1/evolution/recent` | AI self-improvement events |
+
+### Legacy Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/agent/start` | Start 24/7 monitoring |
+| `POST` | `/api/agent/stop` | Stop monitoring |
+| `GET` | `/api/agent/status` | Agent status |
+| `POST` | `/api/chat/message` | Send chat message |
+| `GET` | `/api/analysis/liquidity/{pair}` | Liquidity zones |
+| `GET` | `/api/signals` | All trading signals |
+| `GET` | `/api/calendar/events` | Economic events |
+
+---
+
+## 🧪 Testing
+
 ```bash
 cd backend
+pip install pytest pytest-asyncio
 pytest tests/ -v
 ```
+
+### Test Coverage
+
+| Test File | Module | Cases |
+|-----------|--------|-------|
+| `test_indicators.py` | IndicatorEngine | 14 |
+| `test_confluence.py` | ConfluenceEngine | 5 |
+| `test_chart_analyser.py` | ChartAnalyser | 6 |
+| `test_backtest.py` | BacktestEngine | 7 |
+| `test_learning.py` | Learning Engine | 9 |
+| `test_ml_models.py` | ML Models | 8 |
+| **Total** | | **49** |
+
+---
+
+## 🖥️ Dashboard Features
+
+### Market Overview
+- Real-time BTC/ETH/GOLD/EUR prices via WebSocket
+- TradingView chart integration
+- System health monitoring (uptime, CPU, memory)
+
+### AI Intelligence Panels (v3.0)
+- **Agent Consensus** — 5 agents' votes with confidence bars and score gauge
+- **Performance Tracker** — P&L, equity curve, win rate, Sharpe, max DD
+- **Mistake Log** — Detected patterns (counter-trend, low confidence, etc.)
+- **Evolution Timeline** — AI self-improvement events (retraining, config changes)
+
+### Other Pages
+- **AI Chat** — Interactive chat with image analysis
+- **Trading Signals** — Entry, SL, TP with confidence scores
+- **Technical Analysis** — Liquidity zones, order blocks, FVGs
+- **Forex Calendar** — Economic events with IST conversion
+- **24/7 Monitoring** — Start/stop/pause automation
+- **Settings** — API keys, risk parameters, AI providers
+
+---
+
+## 📈 Roadmap
+
+- [x] Multi-agent consensus system
+- [x] ML ensemble predictions
+- [x] Self-improving learning loop
+- [x] Vectorised backtesting
+- [x] Chart pattern recognition
+- [x] Dashboard intelligence panels
+- [x] 40+ technical indicators
+- [x] Multi-timeframe confluence
+- [ ] Live trade execution engine
+- [ ] Mobile-responsive PWA
+- [ ] Cloud deployment templates (GCP/AWS)
+- [ ] Advanced portfolio optimisation
+- [ ] WebSocket real-time dashboard updates
+
+---
 
 ## 🔒 Security
 
@@ -316,60 +338,59 @@ pytest tests/ -v
 
 ### Browser Automation Issues
 ```bash
-# Reinstall Playwright browsers
 playwright install chromium
 playwright install-deps chromium
 ```
 
-### Telegram Connection Issues
-```bash
-# Delete session and re-authenticate
-rm data/telegram_session.session
-```
-
 ### Port Already in Use
 ```bash
-# Find and kill process on port 8001
-lsof -ti:8001 | xargs kill -9
+# Windows
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+# Linux/macOS
+lsof -ti:8000 | xargs kill -9
 ```
 
-## 📈 Roadmap
+### Module Not Found Errors
+```bash
+cd backend
+pip install -r requirements.txt
+```
 
-- [ ] Machine learning model training
-- [ ] Backtesting engine
-- [ ] Portfolio optimization
-- [ ] Social sentiment deep learning
-- [ ] Multi-timeframe analysis
-- [ ] Automated trade execution
-- [ ] Mobile app
-- [ ] Cloud deployment templates
+---
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ## ⚠️ Disclaimer
 
-This software is for educational purposes only. Trading cryptocurrencies and forex carries significant risk. Never trade with money you cannot afford to lose. Always do your own research before making any investment decisions.
+This software is for educational and research purposes only. Trading cryptocurrencies and forex carries significant risk. Never trade with money you cannot afford to lose. Past performance is not indicative of future results. Always do your own research.
 
 ## 🙏 Acknowledgments
 
-- [FastAPI](https://fastapi.tiangolo.com/) - Web framework
-- [React](https://react.dev/) - Frontend library
-- [Playwright](https://playwright.dev/) - Browser automation
-- [Telethon](https://docs.telethon.dev/) - Telegram client
-- [CCXT](https://ccxt.readthedocs.io/) - Crypto trading library
+- [FastAPI](https://fastapi.tiangolo.com/) — Web framework
+- [React](https://react.dev/) — Frontend library
+- [Recharts](https://recharts.org/) — Chart library
+- [Playwright](https://playwright.dev/) — Browser automation
+- [scikit-learn](https://scikit-learn.org/) — ML library
+- [XGBoost](https://xgboost.readthedocs.io/) — Gradient boosting
+- [pandas-ta](https://github.com/twopirllc/pandas-ta) — Technical analysis
+- [CCXT](https://ccxt.readthedocs.io/) — Crypto trading library
+- [Zustand](https://zustand-demo.pmnd.rs/) — State management
+- [Tailwind CSS](https://tailwindcss.com/) — Utility-first CSS
 
 ---
 
-**Made with ❤️ by AI Trading Agent Pro Team**
+**Made with 🧠 by Kimi Agent Team** — Powered by multi-agent AI consensus
 
-For support, please open an issue on GitHub or contact us.
+For support, please open an issue on [GitHub](https://github.com/zakky8/Kimi_Agent/issues).
