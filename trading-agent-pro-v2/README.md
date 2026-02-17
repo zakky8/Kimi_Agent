@@ -56,155 +56,18 @@ A fully autonomous, self-improving AI trading agent featuring multi-agent consen
 
 ## 📁 File Structure
 
-```
-trading-agent-pro-v2/
-├── 📂 backend/
-│   ├── 📂 app/
-│   │   ├── 📂 ai_engine/
-│   │   │   ├── agent.py                # AI agent with 24/7 monitoring
-│   │   │   ├── llm_client.py           # Multi-provider LLM client
-│   │   │   └── signal_generator.py     # Legacy signal generation
-│   │   ├── 📂 services/
-│   │   │   ├── 📂 analysis/
-│   │   │   │   ├── indicators.py       # ★ 40+ technical indicators (NaN-safe)
-│   │   │   │   └── confluence.py       # ★ Multi-TF weighted confluence
-│   │   │   ├── 📂 ml/
-│   │   │   │   └── models.py           # ★ LSTM, XGB, RF, PPO, Ensemble
-│   │   │   ├── 📂 agents/
-│   │   │   │   └── orchestrator.py     # ★ 5-agent consensus orchestrator
-│   │   │   ├── 📂 signals/
-│   │   │   │   └── generator.py        # ★ ATR SL, R:R TP, position sizing
-│   │   │   ├── 📂 learning/
-│   │   │   │   └── learning_engine.py  # ★ Online learner + mistake tracker
-│   │   │   ├── 📂 browser/
-│   │   │   │   └── automated_scraper.py # ★ Playwright CoinGlass scraper
-│   │   │   ├── 📂 charts/
-│   │   │   │   └── analyser.py         # ★ Chart pattern detector
-│   │   │   ├── 📂 backtest/
-│   │   │   │   └── engine.py           # ★ Vectorised backtester
-│   │   │   └── 📂 market_data/
-│   │   │       └── ingestion.py        # ★ Binance WS + yfinance + browser
-│   │   ├── 📂 analysis/                # Legacy SMC analysis
-│   │   ├── 📂 api/
-│   │   │   └── routes.py               # FastAPI endpoints
-│   │   ├── config.py                   # Configuration settings
-│   │   └── main.py                     # ★ Full lifecycle + analysis loop
-│   ├── 📂 migrations/
-│   │   ├── 001_initial.sql             # Base schema
-│   │   └── 002_agent_evolution.sql     # ★ Evolution + mistakes tables
-│   ├── 📂 tests/
-│   │   ├── test_indicators.py          # ★ Indicator tests (14 cases)
-│   │   ├── test_confluence.py          # ★ Confluence tests (5 cases)
-│   │   ├── test_chart_analyser.py      # ★ Chart pattern tests (6 cases)
-│   │   ├── test_backtest.py            # ★ Backtest tests (7 cases)
-│   │   ├── test_learning.py            # ★ Learning engine tests (9 cases)
-│   │   └── test_ml_models.py           # ★ ML model tests (8 cases)
-│   └── requirements.txt               # Python dependencies (100+)
-├── 📂 frontend/
-│   ├── 📂 src/
-│   │   ├── 📂 components/
-│   │   │   ├── AgentStatusPanel.tsx    # ★ Multi-agent consensus panel
-│   │   │   ├── PerformancePanel.tsx    # ★ P&L + equity curve + metrics
-│   │   │   ├── MistakeLog.tsx          # ★ Mistake tracker UI
-│   │   │   ├── EvolutionLog.tsx        # ★ AI self-improvement timeline
-│   │   │   ├── Layout.tsx              # Main layout
-│   │   │   ├── Sidebar.tsx             # Navigation sidebar
-│   │   │   └── Header.tsx              # Top header
-│   │   ├── 📂 pages/
-│   │   │   ├── Dashboard.tsx           # ★ Enhanced with 4 new panels
-│   │   │   ├── Chat.tsx                # AI chat interface
-│   │   │   ├── Signals.tsx             # Trading signals
-│   │   │   ├── Analysis.tsx            # Technical analysis
-│   │   │   ├── Calendar.tsx            # Forex calendar
-│   │   │   ├── Monitoring.tsx          # 24/7 monitoring control
-│   │   │   └── Settings.tsx            # Settings
-│   │   ├── App.tsx                     # React app entry
-│   │   ├── main.tsx                    # React DOM entry
-│   │   └── index.css                   # Global styles (dark theme)
-│   ├── package.json                    # Node dependencies
-│   ├── vite.config.ts                  # Vite configuration
-│   └── tailwind.config.js             # Tailwind CSS config
-├── 📂 db/
-│   └── init.sql                        # Database initialisation
-├── 📂 scripts/
-│   ├── install.sh / install.bat        # Installers
-│   ├── start_backend.sh / .bat         # Backend launchers
-│   ├── start_frontend.sh / .bat        # Frontend launchers
-│   └── start_all.sh / .bat             # Full stack launchers
-├── .env.example                        # Environment template
-├── .gitignore                          # Git ignore rules
-├── Dockerfile                          # Multi-stage Docker build
-├── docker-compose.yml                  # Production compose
-├── docker-compose.dev.yml              # Dev compose (PG, Redis, Kafka, MLflow)
-├── nginx.conf                          # Nginx reverse proxy
-├── CHANGELOG.md                        # Version history
-├── LICENSE                             # MIT License
-└── README.md                           # This file
-```
-
-> **★** = New or significantly modified in v3.0
+See [FILE_STRUCTURE.md](FILE_STRUCTURE.md) for a detailed breakdown of the v3.0 modular architecture.
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Git
+See [QUICK_START.md](QUICK_START.md) for detailed setup instructions, including **critical security steps**.
 
-### 1. Clone & Install
-
-```bash
-git clone https://github.com/zakky8/Kimi_Agent.git
-cd Kimi_Agent/trading-agent-pro-v2
-
-# Backend
-cd backend
-python -m venv venv
-venv\Scripts\activate          # Windows
-# source venv/bin/activate     # Linux/macOS
-pip install -r requirements.txt
-playwright install chromium     # Optional: for browser scraping
-
-# Frontend
-cd ../frontend
-npm install
-```
-
-### 2. Configure
-
-```bash
-cp .env.example .env
-# Edit .env with your API keys
-```
-
-### 3. Run
-
-```bash
-# Terminal 1 — Backend
-cd backend
-uvicorn app.main:app --reload --port 8000
-
-# Terminal 2 — Frontend
-cd frontend
-npm run dev
-```
-
-### 4. Access
-- **Dashboard**: http://localhost:5173
-- **API Docs**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/api/v1/health
-
-### Docker (Full Stack)
-
-```bash
-# Production
-docker-compose up -d
-
-# Development (includes PostgreSQL, Redis, Kafka, MLflow)
-docker-compose -f docker-compose.dev.yml up -d
-```
+### ⚡ Fast Track
+1. Copy config: `cp .env.example .env`
+2. **SECURITY**: Set `POSTGRES_PASSWORD` in `.env`
+3. Run: `docker compose -f docker-compose.dev.yml up --build`
 
 ---
 
