@@ -168,7 +168,7 @@ export default function Dashboard() {
   });
 
   const systemStatus = {
-    aiAgent: healthData?.status === 'healthy',
+    aiAgent: healthData?.ai_connected || false,
     mt5Connected: healthData?.mt5_connected || false,
     browserAutomation: true,
     forexCalendar: true,
@@ -356,7 +356,7 @@ export default function Dashboard() {
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${status ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
                     }`}>
-                    {status ? 'Active' : 'Offline'}
+                    {status ? 'Active' : key === 'aiAgent' ? 'Missing Keys' : 'Offline'}
                   </span>
                 </div>
               ))}
@@ -377,9 +377,11 @@ export default function Dashboard() {
               5-agent consensus • Self-improving ML • 40+ indicators • Automated risk management
             </p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-xl">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-400 text-sm font-medium">Active</span>
+          <div className={`flex items-center gap-2 px-4 py-2 border rounded-xl ${systemStatus.aiAgent ? 'bg-green-500/20 border-green-500/30' : 'bg-red-500/20 border-red-500/30'}`}>
+            <div className={`w-2 h-2 rounded-full animate-pulse ${systemStatus.aiAgent ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className={`text-sm font-medium ${systemStatus.aiAgent ? 'text-green-400' : 'text-red-400'}`}>
+              {systemStatus.aiAgent ? 'Active' : 'Offline (Missing Keys)'}
+            </span>
           </div>
         </div>
       </div>

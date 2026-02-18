@@ -11,6 +11,9 @@ import psutil
 import yfinance as yf
 import time
 
+from app.config import settings
+from app.ai_engine.agent import get_swarm
+
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["dashboard_data"])
 
@@ -38,11 +41,22 @@ async def get_monitoring_status():
             "memoryUsed": round(mem.percent, 1),
             "memoryTotal": round(mem.total / (1024**3), 1),
             "services": [
-                {"name": "AI Agent", "status": "operational", "type": "bot", "uptime": "99.9%", "latency": 45},
+                {
+                    "name": "AI Agent", 
+                    "status": "operational" if settings.is_ai_connected() else "missing_keys", 
+                    "type": "bot", 
+                    "uptime": "99.9%", 
+                    "latency": 45
+                },
+                {
+                    "name": "MetaTrader 5", 
+                    "status": "operational" if (get_swarm() and get_swarm().mt5 and get_swarm().mt5.connected) else "offline", 
+                    "type": "activity", 
+                    "uptime": "100%", 
+                    "latency": 10
+                },
                 {"name": "Market Data (yfinance)", "status": "operational", "type": "database", "uptime": "99.9%", "latency": 120},
-                {"name": "TradingView Charts", "status": "operational", "type": "globe", "uptime": "100%", "latency": 30},
                 {"name": "API Server", "status": "operational", "type": "cpu", "uptime": f"{hours:02d}:{minutes:02d}:{seconds:02d}", "latency": 15},
-                {"name": "WebSocket Server", "status": "operational", "type": "wifi", "uptime": "99.8%", "latency": 25},
                 {"name": "Forex Calendar", "status": "operational", "type": "clock", "uptime": "99.5%", "latency": 80},
             ],
             "timestamp": datetime.now().isoformat()

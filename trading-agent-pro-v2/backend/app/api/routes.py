@@ -17,6 +17,8 @@ import yfinance as yf
 from datetime import datetime
 from ..ai_engine.agent import get_swarm, AIAgent, AgentStatus
 from ..ai_engine.signal_generator import SignalGenerator
+from ..ai_engine.openclaw_brain import OpenClawBrain
+from ..data_collection.sentiment_pulse import sentiment_pulse
 from ..mt5_client import MT5Client
 from ..config import settings
 try:
@@ -230,7 +232,7 @@ async def create_agent(
     background_tasks: BackgroundTasks
 ):
     """Create and start a new trading agent"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     if swarm is None:
         raise HTTPException(status_code=500, detail="Swarm not initialized")
         
@@ -266,7 +268,7 @@ async def create_agent(
 @router.delete("/agents/{agent_id}")
 async def stop_agent(agent_id: str):
     """Stop and remove an agent"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     agent = swarm.get_agent(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -282,13 +284,13 @@ async def stop_agent(agent_id: str):
 @router.get("/agents", response_model=List[Dict])
 async def list_agents():
     """List all active agents and their status"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     return swarm.list_agents()
 
 @router.get("/agents/{agent_id}")
 async def get_agent_status(agent_id: str):
     """Get detailed status of specific agent"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     agent = swarm.get_agent(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -298,7 +300,7 @@ async def get_agent_status(agent_id: str):
 @router.patch("/agents/{agent_id}/config")
 async def update_agent_config(agent_id: str, config: AgentConfigUpdate):
     """Update agent configuration dynamically"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     agent = swarm.get_agent(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -322,7 +324,7 @@ async def update_agent_config(agent_id: str, config: AgentConfigUpdate):
 @router.get("/swarm/stats")
 async def get_swarm_stats():
     """Get aggregate statistics for all agents"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     if not swarm:
         return {
             "active_agents": 0,
@@ -334,14 +336,14 @@ async def get_swarm_stats():
 @router.post("/swarm/stop-all")
 async def stop_all_agents():
     """Emergency stop all agents"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     await swarm.stop_all()
     return {"success": True, "message": "All agents stopped"}
 
 @router.post("/swarm/emergency-shutdown")
 async def emergency_shutdown():
     """Emergency shutdown: Close all positions and stop all agents"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     mt5 = swarm.mt5
     
     positions = await mt5.get_positions()
@@ -363,16 +365,16 @@ async def emergency_shutdown():
 # Health Check
 @router.get("/health")
 async def system_health():
-    swarm = get_swarm_instance()
-    
-    # Check services status from main app context if possible, or infer
-    # For now, we align with frontend expectations:
+    swarm = get_swarm()
+    ai_connected = settings.is_ai_connected()
+    mt5_active = swarm.mt5.connected if swarm and swarm.mt5 else False
     
     return {
-        "status": "healthy", # Frontend expects 'healthy', not 'operational'
-        "mt5_connected": swarm.mt5.connected if swarm and swarm.mt5 else False,
+        "status": "healthy",
+        "ai_connected": ai_connected,
+        "mt5_connected": mt5_active,
         "active_agents": len(swarm.agents) if swarm else 0,
-        "message": "System operational"
+        "message": "AI Connected" if ai_connected else "AI Disconnected (Missing Keys)"
     }
 
 
@@ -394,7 +396,7 @@ async def chat_message(request: ChatMessageRequest):
 
     msg = request.message.strip().lower()
     symbol = request.symbol
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
 
     # Save User Message
     chat_history_manager.save_message({
@@ -483,7 +485,7 @@ async def chat_message(request: ChatMessageRequest):
         smc_context = ""
         try:
             # Get OHLCV for SMC Analysis
-            swarm = get_swarm_instance()
+            swarm = get_swarm()
             if swarm and hasattr(swarm.mt5, 'get_rates'):
                 rates = await swarm.mt5.get_rates(target_symbol, timeframe='M15', count=100)
                 if rates:
@@ -552,36 +554,48 @@ async def chat_message(request: ChatMessageRequest):
                 ai_response = "AI Analysis Failed."
                 
 
+                # 2. Use Ultimate AI Perception (OpenClawBrain)
                 if settings.OPENROUTER_API_KEY or settings.OPENROUTER_API_KEY_NEMOTRON or settings.OPENROUTER_API_KEY_TRINITY:
-                    # Determine which key to use based on the selected model
-                    selected_model = settings.DEFAULT_AI_MODEL or "openrouter/nvidia/nemotron-3-nano-30b-a3b:free"
-                    api_key = settings.OPENROUTER_API_KEY
+                    brain = OpenClawBrain(agent_id="Chat_Assistant", model_id=selected_model)
                     
-                    if "nemotron" in selected_model and settings.OPENROUTER_API_KEY_NEMOTRON:
-                        api_key = settings.OPENROUTER_API_KEY_NEMOTRON
-                    elif "trinity" in selected_model and settings.OPENROUTER_API_KEY_TRINITY:
-                         api_key = settings.OPENROUTER_API_KEY_TRINITY
-                    
-                    client = AsyncOpenAI(
-                        base_url="https://openrouter.ai/api/v1",
-                        api_key=api_key,
-                        default_headers={"HTTP-Referer": "http://localhost:3000", "X-Title": "AI Trading Agent Pro"}
-                    )
-                    completion = await client.chat.completions.create(
-                        model=selected_model,
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": f"Analyze {target_symbol}"}
-                        ]
-                    )
-                    ai_response = completion.choices[0].message.content
+                    # We need a DataFrame for the brain to think
+                    rates = await swarm.mt5.get_rates(target_symbol, timeframe='M15', count=100) if swarm and hasattr(swarm.mt5, 'get_rates') else None
+                    if rates:
+                        df = pd.DataFrame(rates)
+                        df['time'] = pd.to_datetime(df['time'])
+                        df.set_index('time', inplace=True)
+                        
+                        stats = {"daily_pnl": 0, "active_trades": 0} # Mock stats for chat
+                        signal = await brain.think(target_symbol, df, stats)
+                        
+                        if signal and brain.last_thought:
+                            ai_response = f"🧠 **AI reasoning for {target_symbol}:**\n\n{brain.last_thought}"
+                        else:
+                            ai_response = "AI Brain was unable to reach a high-confidence decision."
+                    else:
+                        # Fallback to standard completion if no rates
+                        client = AsyncOpenAI(
+                            base_url="https://openrouter.ai/api/v1",
+                            api_key=api_key,
+                            default_headers={"HTTP-Referer": "http://localhost:3000", "X-Title": "AI Trading Agent Pro"}
+                        )
+                        completion = await client.chat.completions.create(
+                            model=selected_model,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": f"Analyze {target_symbol}"}
+                            ]
+                        )
+                        ai_response = completion.choices[0].message.content
 
-                
                 elif settings.GEMINI_API_KEY and genai:
                     genai.configure(api_key=settings.GEMINI_API_KEY)
                     model = genai.GenerativeModel("gemini-pro")
                     completion = await model.generate_content_async(f"{system_prompt}\n\nAnalyze {target_symbol}")
                     ai_response = completion.text
+                
+                else:
+                    ai_response = "No AI provider configured for analysis."
 
                 response = {
                     "message": ai_response,
@@ -667,6 +681,13 @@ async def chat_message(request: ChatMessageRequest):
                 if 'ma_50' in real_data:
                      market_context += f"• MA(50): {real_data['ma_50']:.2f}\n"
 
+            # Add Ultimate Market Pulse
+            try:
+                pulse = await sentiment_pulse.get_pulse()
+                market_context += f"\n**Market Pulse (Sentiment):** {pulse.get('summary', 'Neutral')}\n"
+            except:
+                pass
+
             logger.debug(f"Context for AI: {market_context[:200]}...")
 
             messages = [
@@ -743,7 +764,7 @@ async def analyze_image():
 @router.post("/agent/start")
 async def start_agent(request: AgentActionRequest, background_tasks: BackgroundTasks):
     """Start monitoring for specific pairs"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     started = []
     for pair in request.pairs:
         try:
@@ -762,7 +783,7 @@ async def start_agent(request: AgentActionRequest, background_tasks: BackgroundT
 @router.post("/agent/stop")
 async def stop_agent_monitoring(request: AgentActionRequest):
     """Stop monitoring"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     await swarm.stop_all()
     return {
         "message": "🛑 Monitoring stopped for all pairs",
@@ -940,7 +961,7 @@ async def clear_chat_history():
 @router.get("/consensus/latest")
 async def get_consensus_data():
     """Get real-time agent consensus or simulated intelligence if offline"""
-    swarm = get_swarm_instance()
+    swarm = get_swarm()
     
     # If swarm is active and has consensus, use it
     if swarm and getattr(swarm, 'last_consensus', None):

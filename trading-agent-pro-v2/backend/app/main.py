@@ -329,11 +329,13 @@ app.include_router(dashboard_data_module.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
+    ai_connected = settings.is_ai_connected()
     return {
         "name": "Kimi Agent",
         "version": "3.0.0",
-        "status": "operational",
+        "status": "operational" if ai_connected else "limited_mode",
         "docs": "/docs",
+        "ai_connected": ai_connected,
         "services": {
             "market_data": services.market_data is not None,
             "analysis": services.indicator_engine is not None,

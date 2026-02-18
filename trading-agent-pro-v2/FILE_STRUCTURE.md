@@ -24,10 +24,12 @@ The backend is built with **FastAPI** and follows a modular service-oriented arc
 | `backtest/` | **Simulation** — `engine.py` (Vectorised backtester) |
 | `charts/` | **Pattern Recog** — `analyser.py` (Triangle/H&S detection) |
 
-### legacy/ & support
+### Legacy v2 / Ultimate v3.1 Logic
 | Path | Description |
 |---|---|
-| `app/ai_engine/` | **Legacy v2 Agent** — `agent.py` (Swarm v2 monitoring loop) |
+| `app/ai_engine/agent.py` | Swarm v2 monitoring loop (Entry for agents) |
+| `app/ai_engine/openclaw_brain.py` | **Ultimate Brain** — Chain-of-Thought reasoning engine |
+| `app/data_collection/sentiment_pulse.py` | **Sentiment Pulse** — Reddit & RSS scraper/analyser |
 | `app/shared/` | Data schemas (`candle.py`, `signal.py`) |
 | `app/mt5_client.py` | MetaTrader 5 client wrapper |
 

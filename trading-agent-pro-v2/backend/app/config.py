@@ -33,8 +33,8 @@ class Settings(BaseSettings):
     # AI Providers (Free Tiers)
 
     OPENROUTER_API_KEY: Optional[str] = None # Default or fallback
-    OPENROUTER_API_KEY_NEMOTRON: Optional[str] = "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"
-    OPENROUTER_API_KEY_TRINITY: Optional[str] = "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"
+    OPENROUTER_API_KEY_NEMOTRON: Optional[str] = None
+    OPENROUTER_API_KEY_TRINITY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
@@ -116,6 +116,13 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
         extra = "ignore"
+
+    def is_ai_connected(self) -> bool:
+        """Check if any primary AI API key is configured"""
+        return bool(self.OPENROUTER_API_KEY or 
+                    self.OPENROUTER_API_KEY_NEMOTRON or 
+                    self.OPENROUTER_API_KEY_TRINITY or 
+                    self.GEMINI_API_KEY)
 
 
 

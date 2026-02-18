@@ -23,8 +23,10 @@ A fully autonomous, self-improving AI trading agent featuring multi-agent consen
 | 🌐 **Browser Automation** | Playwright-powered CoinGlass scraping (funding rates, OI) |
 | 📈 **Chart Patterns** | Double top/bottom, H&S, triangles, wedges, channels |
 | 🧪 **Vectorised Backtester** | Simulated trades with SL/TP, slippage, commissions, equity curves |
-| 🖥️ **Dashboard Upgrade** | Agent consensus panel, performance tracker, mistake log, evolution timeline |
-| ✅ **Unit Tests** | 40+ test cases across 6 test files |
+| 🖥️ **Dashboard Upgrade** | Agent consensus panel, performance tracker, mistake log, evolution timeline, dynamic status |
+| 🛡️ **Security Fix** | No hardcoded API keys; dynamic "Missing Keys" visibility for AI and MT5 |
+| 🧠 **Ultimate Brain** | OpenClaw CoT reasoning + Sentiment Pulse (Reddit/RSS) for deep market insight |
+| 🔍 **Proactive Insights** | AI initiates broadcasts in chat for high-confidence (>90%) trade setups |
 
 ---
 
@@ -160,6 +162,12 @@ pytest tests/ -v
 - **Performance Tracker** — P&L, equity curve, win rate, Sharpe, max DD
 - **Mistake Log** — Detected patterns (counter-trend, low confidence, etc.)
 - **Evolution Timeline** — AI self-improvement events (retraining, config changes)
+- **Truthful Status** — Dynamic "Missing Keys" and "MT5 Offline" visibility for transparent monitoring
+
+### Ultimate AI Perception (v3.1)
+- **OpenClaw Brain** — Multi-step Chain-of-Thought reasoning for trade decisions
+- **Sentiment Pulse** — Real-time Reddit/RSS mood tracking (Forex, Crypto, Gold)
+- **Proactive Insights** — Autonomous badge-marked insights pushed directly to chat
 
 ### Other Pages
 - **AI Chat** — Interactive chat with image analysis

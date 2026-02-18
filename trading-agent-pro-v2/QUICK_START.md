@@ -38,11 +38,11 @@ docker compose -f docker-compose.dev.yml up --build
 
 ---
 
-## 3. Configure API Keys
+## 3. Configure AI & Trading Keys
 
-1. Go to the **Settings** page in the dashboard.
-2. Enter your **OpenRouter** or **Gemini** API key (required for AI chat).
-3. (Optional) Set up Telegram/Discord webhooks for notifications.
+1.  **AI Intelligence**: Open `.env` and set `OPENROUTER_API_KEY` or `GEMINI_API_KEY`. Without these, the dashboard will show **"Missing Keys"**.
+2.  **MetaTrader 5 (Optional)**: If using MT5, set `MT5_ENABLED=True` and provide your credentials.
+3.  **Validation**: Once configured, the dashboard status indicators will turn green.
 
 ---
 

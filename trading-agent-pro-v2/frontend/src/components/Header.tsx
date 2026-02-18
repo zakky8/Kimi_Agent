@@ -1,5 +1,7 @@
 import { Menu, Bell, User, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -9,6 +11,18 @@ interface HeaderProps {
 export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   const [darkMode, setDarkMode] = useState(true);
   const [notifications] = useState(3);
+
+  // Fetch AI status for top bar
+  const { data: healthData } = useQuery({
+    queryKey: ['system-health-header'],
+    queryFn: async () => {
+      const res = await axios.get('/api/v1/health');
+      return res.data;
+    },
+    refetchInterval: 30000,
+  });
+
+  const aiActive = healthData?.ai_connected || false;
 
   return (
     <header className="h-16 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 flex items-center justify-between px-6">
@@ -21,8 +35,8 @@ export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
         </button>
 
         <div className="hidden md:flex items-center gap-2 text-sm text-slate-400">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span>AI Agent Active</span>
+          <span className={`w-2 h-2 rounded-full animate-pulse ${aiActive ? 'bg-green-500' : 'bg-red-500'}`} />
+          <span>AI Agent {aiActive ? 'Active' : 'Offline'}</span>
           <span className="text-slate-600">|</span>
           <span>Monitoring 24/7</span>
         </div>
