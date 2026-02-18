@@ -305,12 +305,48 @@ async def get_analysis(symbol: str = "EURUSD"):
 
 # ─── CALENDAR ────────────────────────────────────────────────────────────────
 
+
 @router.get("/calendar")
 async def get_forex_calendar():
-    """Get forex economic calendar — uses curated schedule for major events"""
+    """Get forex economic calendar — uses crawled data if available, else static fallback"""
+    from app.main import services  # Import inside function to avoid circular import
+
     now = datetime.now()
     today = now.strftime("%Y-%m-%d")
     
+    # 1. Try to get real scraped data
+    if services.browser_scraper:
+        cached = services.browser_scraper.get_cached("forex_factory")
+        if cached and cached.payload and "events" in cached.payload:
+            events = cached.payload["events"]
+            # Filter empty events or ads
+            valid_events = [e for e in events if e.get("currency") and e.get("event")]
+            
+            # Format to match frontend expected schema
+            formatted_events = []
+            for i, ev in enumerate(valid_events):
+                formatted_events.append({
+                    "id": str(i + 1),
+                    "date": ev.get("date", today),
+                    "time": ev.get("time", "-"),
+                    "currency": ev.get("currency", ""),
+                    "event": ev.get("event", ""),
+                    "impact": ev.get("impact", "low"),
+                    "actual": ev.get("actual") or "-",
+                    "forecast": ev.get("forecast") or "-",
+                    "previous": "-" # Scraper might not get this easily
+                })
+            
+            if formatted_events:
+                return {
+                    "events": formatted_events,
+                    "date": today,
+                    "dayOfWeek": now.strftime("%A"),
+                    "source": "ForexFactory (Live)",
+                    "timestamp": now.isoformat()
+                }
+
+    # 2. Fallback to static data
     # Real recurring major events (these happen on known schedules)
     weekly_events = [
         {"currency": "USD", "event": "Initial Jobless Claims", "impact": "medium", "time": "06:00 PM"},
@@ -372,5 +408,6 @@ async def get_forex_calendar():
         "events": events,
         "date": today,
         "dayOfWeek": now.strftime("%A"),
+        "source": "Static (Fallback)",
         "timestamp": now.isoformat()
     }

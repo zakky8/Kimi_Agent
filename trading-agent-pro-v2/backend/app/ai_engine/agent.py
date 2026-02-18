@@ -109,9 +109,10 @@ class AIAgent:
     def __init__(self, 
                  symbol: str,
                  agent_id: str,
-                 mt5_client,
+                  mt5_client,
                  config: Dict,
-                 signal_callback: Optional[Callable] = None):
+                 signal_callback: Optional[Callable] = None,
+                 broadcast_callback: Optional[Callable] = None):
         """
         Initialize agent for specific symbol
         
@@ -121,15 +122,25 @@ class AIAgent:
             mt5_client: MT5 connection client
             config: Agent configuration
             signal_callback: Optional callback for signal notifications
+            broadcast_callback: Optional callback for proactive insights
         """
         self.symbol = symbol
         self.agent_id = agent_id
         self.mt5 = mt5_client
         self.config = config
         self.signal_callback = signal_callback
+        self.broadcast_callback = broadcast_callback
         
         # Core components
         self.signal_generator = SignalGenerator(config.get('signal_config', {}))
+        
+        # New: OpenClaw Autonomous Brain
+        from ..config import settings
+        self.brain = None
+        if getattr(settings, 'BRAIN_UPGRADE_ENABLED', False):
+            from .openclaw_brain import OpenClawBrain
+            self.brain = OpenClawBrain(agent_id=agent_id)
+            
         # News analyzer is optional and may need to be imported correctly
         self.news_analyzer = None 
         
@@ -211,6 +222,12 @@ class AIAgent:
                     # 3. Execute if signal valid and autonomous mode enabled
                     if signal and self.autonomous_mode:
                         await self._execute_signal(signal)
+                    
+                    # 4. Proactive Broadcast (The "Speak First" Logic)
+                    if signal and signal.confidence > 0.9 and self.broadcast_callback:
+                        insight_msg = f"🔍 **Market Insight from {self.agent_id}** on {self.symbol}:\n\n" \
+                                      f"{signal.metadata.get('reasoning', 'Autonomous analysis indicates a strong move.')}"
+                        await self.broadcast_callback(self.agent_id, insight_msg)
                 
                 # Reset error counter on successful iteration
                 self.memory.clear_errors()
@@ -289,9 +306,53 @@ class AIAgent:
             logger.error(f"Error checking price movements for {self.symbol}: {e}")
             return None
     
+
     async def _generate_signals(self, df: pd.DataFrame) -> Optional[TradingSignal]:
         """
-        Generate trading signals using Institutional-Grade Multi-Source Analysis
+        Produce a signal using either Traditional SMC rules or OpenClaw Brain reasoning.
+        """
+        from ..config import settings
+        
+        # Scenario A: Autonomous OpenClaw Brain (Institutional Upgrade)
+        if self.brain and getattr(settings, 'BRAIN_UPGRADE_ENABLED', False):
+            try:
+                stats = self.get_status()
+                # The brain provides Chain-of-Thought reasoning
+                signal = await self.brain.think(self.symbol, df, stats)
+                
+                if signal:
+                    # Update "Consensus" perception for the dashboard
+                    # We store the thought in last_consensus to satisfy routes.py:/consensus/latest
+                    from .agent import _swarm_instance
+                    if _swarm_instance:
+                        setattr(_swarm_instance, 'last_consensus', {
+                            "symbol": self.symbol,
+                            "direction": signal.direction.upper(),
+                            "consensus_score": signal.confidence,
+                            "agreement_count": 1,
+                            "total_agents": 1,
+                            "is_actionable": signal.confidence > 0.8,
+                            "opinions": {
+                                self.agent_id: {
+                                    "agent_name": f"Brain_{self.agent_id}", 
+                                    "vote": signal.direction.upper(), 
+                                    "confidence": signal.confidence, 
+                                    "reasoning": signal.metadata.get("reasoning", "Autonomous reasoning...")
+                                }
+                            }
+                        })
+                    
+                    self.memory.add_signal(signal)
+                    return signal
+            except Exception as e:
+                logger.error(f"OpenClaw Brain failed for {self.agent_id}: {e}, falling back to SMC")
+
+        # Scenario B: Static SMC Rules (Traditional)
+        return await self._generate_signals_smc(df)
+
+    async def _generate_signals_smc(self, df: pd.DataFrame) -> Optional[TradingSignal]:
+        """
+        Generate trading signals using Institutional-Grade Multi-Source Analysis (SMC)
         """
         try:
             # 1. Multi-Intermarket Context (DXY, Sentiment)
@@ -457,6 +518,7 @@ class AgentSwarm:
         self.agents: Dict[str, AIAgent] = {}
         self._lock = threading.Lock()
         self._executor = ThreadPoolExecutor(max_workers=10)
+        self.global_broadcast_callback: Optional[Callable] = None
         
     def create_agent(self, 
                      symbol: str, 
@@ -464,14 +526,6 @@ class AgentSwarm:
                      agent_config: Optional[Dict] = None) -> AIAgent:
         """
         Factory method to create new agent instance
-        
-        Args:
-            symbol: Trading symbol
-            agent_id: Optional custom ID (default: auto-generated)
-            agent_config: Optional agent-specific config
-            
-        Returns:
-            AIAgent instance
         """
         with self._lock:
             if agent_id is None:
@@ -482,12 +536,19 @@ class AgentSwarm:
             
             config = {**self.config, **(agent_config or {})}
             
+            # Local broadcast handler to forward to global callback
+            async def _swarm_broadcast_handler(aid: str, msg: str):
+                logger.info(f"Swarm Insight from {aid}: {msg}")
+                if hasattr(self, 'global_broadcast_callback') and self.global_broadcast_callback:
+                    await self.global_broadcast_callback(aid, msg)
+
             agent = AIAgent(
                 symbol=symbol,
                 agent_id=agent_id,
                 mt5_client=self.mt5,
                 config=config,
-                signal_callback=self._on_signal
+                signal_callback=self._on_signal,
+                broadcast_callback=_swarm_broadcast_handler
             )
             
             self.agents[agent_id] = agent

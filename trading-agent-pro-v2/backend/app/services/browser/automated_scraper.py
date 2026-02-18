@@ -42,6 +42,7 @@ class AutomatedScraper:
       3. TradingView technicals widget — every 15 min (via embed)
     """
 
+
     TARGETS = {
         "coinglass_funding": {
             "url": "https://www.coinglass.com/FundingRate",
@@ -53,6 +54,12 @@ class AutomatedScraper:
             "interval_s": 1800,
             "selector": ".ant-table-tbody",
         },
+        "forex_factory": {
+             "url": "https://www.forexfactory.com/calendar?day=today",
+             "interval_s": 900,  # 15 min
+             "selector": "table.calendar__table",
+             "cookies": [{"name": "ff_timezone_offset", "value": "19", "domain": ".forexfactory.com", "path": "/"}] # 19 = GMT+5:30 (IST)
+        }
     }
 
     def __init__(
@@ -96,7 +103,7 @@ class AutomatedScraper:
         while self._running:
             try:
                 start = time.time()
-                data = await self._scrape_page(target["url"], target.get("selector"))
+                data = await self._scrape_page(target["url"], target.get("selector"), target.get("cookies"))
                 latency = (time.time() - start) * 1000
 
                 scraped = ScrapedData(
@@ -118,14 +125,19 @@ class AutomatedScraper:
 
             await asyncio.sleep(target["interval_s"])
 
-    async def _scrape_page(self, url: str, selector: Optional[str] = None) -> Dict[str, Any]:
+    async def _scrape_page(self, url: str, selector: Optional[str] = None, cookies: Optional[List[Dict]] = None) -> Dict[str, Any]:
         """Scrape a single page and extract text content."""
         if self._browser is None:
             return {"error": "browser_not_available"}
 
-        page = await self._browser.new_page()
+        # Create a new context to support cookies
+        context = await self._browser.new_context()
+        if cookies:
+            await context.add_cookies(cookies)
+
+        page = await context.new_page()
         try:
-            await page.goto(url, timeout=self._timeout, wait_until="networkidle")
+            await page.goto(url, timeout=self._timeout, wait_until="domcontentloaded") # relaxed wait
 
             # Wait for specific selector if provided
             if selector:
@@ -134,11 +146,13 @@ class AutomatedScraper:
                 except Exception:
                     pass  # Selector may not appear on all pages
 
-            # Extract page text
+            # Special parsing for Forex Factory
+            if "forexfactory.com" in url:
+                return await self._parse_forex_factory(page)
+
+            # Default: Extract page text
             title = await page.title()
             text = await page.inner_text("body")
-
-            # Truncate to avoid memory issues
             text = text[:5000] if len(text) > 5000 else text
 
             return {
@@ -150,6 +164,64 @@ class AutomatedScraper:
 
         finally:
             await page.close()
+            await context.close()
+
+    async def _parse_forex_factory(self, page) -> Dict[str, Any]:
+        """Specific parser for Forex Factory Calendar"""
+        events = []
+        rows = await page.query_selector_all("tr.calendar_row")
+        
+        current_date_str = ""
+        
+        for row in rows:
+            try:
+                # Date row check
+                date_cell = await row.query_selector(".calendar__date")
+                if date_cell:
+                    text = await date_cell.inner_text()
+                    if text.strip():
+                        current_date_str = text.strip()
+                
+                # Time
+                time_cell = await row.query_selector(".calendar__time")
+                time_str = await time_cell.inner_text() if time_cell else ""
+                
+                # Currency
+                currency_cell = await row.query_selector(".calendar__currency")
+                currency = await currency_cell.inner_text() if currency_cell else ""
+                
+                # Event
+                event_cell = await row.query_selector(".calendar__event")
+                event_name = await event_cell.inner_text() if event_cell else ""
+                
+                # Impact
+                impact_cell = await row.query_selector(".calendar__impact span")
+                impact_class = await impact_cell.get_attribute("class") if impact_cell else ""
+                impact = "low"
+                if "high" in impact_class: impact = "high"
+                elif "medium" in impact_class: impact = "medium"
+                
+                # Actual/Forecast
+                actual_cell = await row.query_selector(".calendar__actual")
+                actual = await actual_cell.inner_text() if actual_cell else ""
+                
+                forecast_cell = await row.query_selector(".calendar__forecast")
+                forecast = await forecast_cell.inner_text() if forecast_cell else ""
+
+                if event_name:
+                    events.append({
+                        "date": current_date_str,
+                        "time": time_str,
+                        "currency": currency,
+                        "event": event_name,
+                        "impact": impact,
+                        "actual": actual,
+                        "forecast": forecast
+                    })
+            except Exception:
+                continue
+                
+        return {"events": events, "count": len(events)}
 
     def get_cached(self, source: str) -> Optional[ScrapedData]:
         """Retrieve cached data for a source."""
@@ -169,3 +241,4 @@ class AutomatedScraper:
         if hasattr(self, "_pw") and self._pw:
             await self._pw.stop()
         logger.info("[Scraper] Stopped")
+

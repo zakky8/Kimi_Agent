@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
     ENVIRONMENT: str = "production"
+    BRAIN_UPGRADE_ENABLED: bool = True  # Enable OpenClaw autonomous brain
     
     # Server Settings
     HOST: str = "0.0.0.0"
@@ -30,14 +31,18 @@ class Settings(BaseSettings):
     KAFKA_BROKERS: str = "localhost:9092"
     
     # AI Providers (Free Tiers)
-    OPENROUTER_API_KEY: Optional[str] = None
+
+    OPENROUTER_API_KEY: Optional[str] = None # Default or fallback
+    OPENROUTER_API_KEY_NEMOTRON: Optional[str] = "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"
+    OPENROUTER_API_KEY_TRINITY: Optional[str] = "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"
     GEMINI_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     
     # Default AI Model
-    DEFAULT_AI_MODEL: str = "openrouter/anthropic/claude-3-opus"
+    DEFAULT_AI_MODEL: str = "nvidia/llama-3.1-nemotron-70b-instruct"
+
     DEFAULT_VISION_MODEL: str = "gemini-pro-vision"
     
     # Financial APIs
@@ -217,13 +222,17 @@ AI_PROVIDERS = {
     "openrouter": {
         "name": "OpenRouter",
         "base_url": "https://openrouter.ai/api/v1",
+
         "models": [
+            "nvidia/llama-3.1-nemotron-70b-instruct",
+            "arcee-ai/trinity-large-preview:free",
             "anthropic/claude-3-opus",
             "anthropic/claude-3-sonnet",
             "openai/gpt-4-turbo",
             "google/gemini-pro",
             "meta-llama/llama-2-70b-chat"
         ],
+
         "vision_models": [
             "anthropic/claude-3-opus",
             "google/gemini-pro-vision"

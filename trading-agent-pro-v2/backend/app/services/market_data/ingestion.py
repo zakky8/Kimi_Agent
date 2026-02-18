@@ -794,6 +794,7 @@ class MarketDataService:
             on_candle=self._on_candle,
         )
 
+
         # ── Forex + Stocks: yfinance polling (FREE) ──
         yf_symbols = self.forex_symbols + self.stock_symbols
         self._yfinance: Optional[YFinanceConnector] = None
@@ -902,6 +903,10 @@ class MarketDataService:
     def get_health(self) -> Dict[str, float]:
         """Return last_tick_age_seconds per symbol."""
         return self.health.get_metrics()
+
+    def get_rolling(self, symbol: str, timeframe: str) -> Optional[pd.DataFrame]:
+        """Alias for get_candles."""
+        return self.get_candles(symbol, timeframe)
 
     def get_supplementary(self, source: str) -> Optional[Dict[str, Any]]:
         """Get cached supplementary data (e.g. fear_greed)."""

@@ -21,7 +21,7 @@ interface Message {
   data?: any
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([

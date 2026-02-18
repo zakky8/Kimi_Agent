@@ -14,7 +14,7 @@ import {
 import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 interface SettingsSection {
   id: string

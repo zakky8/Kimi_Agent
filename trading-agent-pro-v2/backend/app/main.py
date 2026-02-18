@@ -27,7 +27,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+
+
+
+
+
 from app.api import routes
+
+import app.api.dashboard_data as dashboard_data_module
+
+
+
+
+
+# ... existing code ...
+
+
+
+
 
 # ── Service Imports (Robust) ──
 try:
@@ -300,7 +317,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.include_router(routes.router, prefix="/api/v1")
+
+app.include_router(dashboard_data_module.router, prefix="/api/v1")
+
+
 
 
 # ── Root endpoints ──
@@ -327,22 +349,8 @@ async def root():
     }
 
 
-@app.get("/api/v1/health")
-async def health():
-    return {
-        "status": "healthy",
-        "market_data_health": (
-            services.market_data.get_health()
-            if services.market_data else {}
-        ),
-        "performance": (
-            {
-                "is_paused": services.performance_tracker.is_paused,
-                "pause_reason": services.performance_tracker.pause_reason,
-            }
-            if services.performance_tracker else {}
-        ),
-    }
+# duplicate health endpoint removed
+
 
 
 @app.get("/api/v1/mistakes")
@@ -352,20 +360,8 @@ async def get_mistakes():
     return {"total_mistakes": 0}
 
 
-@app.get("/api/v1/performance")
-async def get_performance():
-    if services.performance_tracker:
-        snap = services.performance_tracker.get_snapshot()
-        return {
-            "win_rate": snap.win_rate,
-            "total_trades": snap.total_trades,
-            "total_pnl": snap.total_pnl,
-            "max_drawdown_pct": snap.max_drawdown_pct,
-            "sharpe_ratio": snap.sharpe_ratio,
-            "avg_rr": snap.avg_rr,
-            "is_paused": services.performance_tracker.is_paused,
-        }
-    return {}
+# duplicate performance endpoint removed
+
 
 
 if __name__ == "__main__":
