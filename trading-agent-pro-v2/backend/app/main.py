@@ -1,14 +1,14 @@
 """
-Kimi Agent — Main Application Entry Point (v3.0)
+Kimi Agent — Main Application Entry Point (v3.0 - Robust/Lite Mode)
 
 Lifecycle:
   Startup:
     1. Configure logging
     2. Start MarketDataService (Binance WS, yfinance, ccxt)
-    3. Initialize IndicatorEngine, ConfluenceEngine
-    4. Initialize ML EnsemblePredictor
-    5. Initialize Orchestrator (5 agents)
-    6. Initialize SignalGenerator + LearningEngine
+    3. Initialize IndicatorEngine, ConfluenceEngine (if avail)
+    4. Initialize ML EnsemblePredictor (if avail)
+    5. Initialize Orchestrator (5 agents) (if avail)
+    6. Initialize SignalGenerator + LearningEngine (if avail)
     7. Start Browser Scraper (Playwright, optional)
     8. Start scheduling loop (analyse every N seconds)
 
@@ -29,21 +29,48 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api import routes
 
-# Services
-from app.services.market_data.ingestion import MarketDataService
-from app.services.analysis.indicators import IndicatorEngine
-from app.services.analysis.confluence import ConfluenceEngine
-from app.services.ml.models import EnsemblePredictor
-from app.services.agents.orchestrator import Orchestrator
-from app.services.signals.generator import SignalGenerator
-from app.services.learning.learning_engine import (
-    OnlineLearner,
-    MistakeTracker,
-    PerformanceTracker,
-    TradeOutcome,
-)
-from app.services.charts.analyser import ChartAnalyser
-from app.services.backtest.engine import BacktestEngine
+# ── Service Imports (Robust) ──
+try:
+    from app.services.market_data.ingestion import MarketDataService
+    HAS_MARKET_DATA = True
+except ImportError:
+    HAS_MARKET_DATA = False
+
+try:
+    from app.services.analysis.indicators import IndicatorEngine
+    from app.services.analysis.confluence import ConfluenceEngine
+    from app.services.charts.analyser import ChartAnalyser
+    HAS_ANALYSIS = True
+except ImportError:
+    HAS_ANALYSIS = False
+
+try:
+    from app.services.ml.models import EnsemblePredictor
+    from app.services.learning.learning_engine import (
+        OnlineLearner,
+        MistakeTracker,
+        PerformanceTracker,
+        TradeOutcome,
+    )
+    HAS_ML = True
+except ImportError:
+    HAS_ML = False
+
+try:
+    from app.services.agents.orchestrator import Orchestrator
+    HAS_AGENTS = True
+except ImportError:
+    HAS_AGENTS = False
+
+try:
+    from app.services.signals.generator import SignalGenerator
+    try:
+        from app.services.backtest.engine import BacktestEngine
+    except ImportError:
+        BacktestEngine = None # type: ignore
+    HAS_SIGNALS = True
+except ImportError:
+    HAS_SIGNALS = False
 
 # Optional browser scraper
 try:
@@ -51,6 +78,7 @@ try:
     HAS_PLAYWRIGHT = True
 except ImportError:
     HAS_PLAYWRIGHT = False
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,17 +91,17 @@ logger = logging.getLogger("kimi_agent")
 
 class ServiceRegistry:
     """Central registry for all Kimi Agent services."""
-    market_data: MarketDataService = None  # type: ignore
-    indicator_engine: IndicatorEngine = None  # type: ignore
-    confluence_engine: ConfluenceEngine = None  # type: ignore
-    ensemble: EnsemblePredictor = None  # type: ignore
-    orchestrator: Orchestrator = None  # type: ignore
-    signal_generator: SignalGenerator = None  # type: ignore
-    online_learner: OnlineLearner = None  # type: ignore
-    mistake_tracker: MistakeTracker = None  # type: ignore
-    performance_tracker: PerformanceTracker = None  # type: ignore
-    chart_analyser: ChartAnalyser = None  # type: ignore
-    backtest_engine: BacktestEngine = None  # type: ignore
+    market_data: Any = None
+    indicator_engine: Any = None
+    confluence_engine: Any = None
+    ensemble: Any = None
+    orchestrator: Any = None
+    signal_generator: Any = None
+    online_learner: Any = None
+    mistake_tracker: Any = None
+    performance_tracker: Any = None
+    chart_analyser: Any = None
+    backtest_engine: Any = None
     browser_scraper: Any = None
     _analysis_task: asyncio.Task = None  # type: ignore
 
@@ -90,6 +118,11 @@ async def _analysis_loop():
     """
     while True:
         try:
+            if not services.market_data:
+                logger.warning("[Main] Market Data service not available. Skipping analysis.")
+                await asyncio.sleep(60)
+                continue
+
             for symbol in ["BTC/USDT"]:  # Expand via config
                 candles: Dict[str, Any] = {}
                 for tf in ["D1", "H4", "H1", "M15", "M5"]:
@@ -100,9 +133,11 @@ async def _analysis_loop():
                 if not candles:
                     continue
 
-                # Compute indicators on primary TF
-                primary_tf = "H1" if "H1" in candles else list(candles.keys())[0]
-                indicators = services.indicator_engine.compute(candles[primary_tf])
+                indicators = {}
+                if services.indicator_engine:
+                    # Compute indicators on primary TF
+                    primary_tf = "H1" if "H1" in candles else list(candles.keys())[0]
+                    indicators = services.indicator_engine.compute(candles[primary_tf])
 
                 # Build context
                 context: Dict[str, Any] = {
@@ -121,30 +156,31 @@ async def _analysis_loop():
                         context[k] = v.payload
 
                 # Check performance kill-switch
-                if services.performance_tracker.is_paused:
+                if services.performance_tracker and services.performance_tracker.is_paused:
                     logger.warning(
                         f"[Main] Trading paused: {services.performance_tracker.pause_reason}"
                     )
                     continue
 
                 # Run orchestrator
-                consensus = await services.orchestrator.decide(symbol, candles, context)
+                if services.orchestrator:
+                    consensus = await services.orchestrator.decide(symbol, candles, context)
 
-                if consensus.is_actionable:
-                    current_price = indicators.get("ema_9", 0.0)
-                    signal = services.signal_generator.generate(
-                        consensus, indicators, current_price
-                    )
-                    if signal:
-                        logger.info(
-                            f"🔔 SIGNAL: {signal.direction} {signal.symbol} "
-                            f"@ {signal.entry_price} "
-                            f"SL={signal.stop_loss} TP={signal.take_profit} "
-                            f"Size={signal.position_size}"
+                    if consensus.is_actionable and services.signal_generator:
+                        current_price = indicators.get("ema_9", 0.0)
+                        signal = services.signal_generator.generate(
+                            consensus, indicators, current_price
                         )
-                        # TODO: Forward to execution engine (MT5/Binance)
-                else:
-                    logger.debug(f"[Main] {symbol}: no actionable consensus")
+                        if signal:
+                            logger.info(
+                                f"🔔 SIGNAL: {signal.direction} {signal.symbol} "
+                                f"@ {signal.entry_price} "
+                                f"SL={signal.stop_loss} TP={signal.take_profit} "
+                                f"Size={signal.position_size}"
+                            )
+                            # TODO: Forward to execution engine (MT5/Binance)
+                    else:
+                        logger.debug(f"[Main] {symbol}: no actionable consensus")
 
         except Exception as exc:
             logger.error(f"[Main] Analysis loop error: {exc}", exc_info=True)
@@ -158,45 +194,54 @@ async def _analysis_loop():
 async def lifespan(app: FastAPI):
     """Application lifecycle manager."""
     logger.info("=" * 60)
-    logger.info("  Kimi Agent v3.0 — Starting Up")
+    logger.info("  Kimi Agent v3.0 — Starting Up (Robust Mode)")
     logger.info("=" * 60)
 
     # 1. Market Data Service
-    services.market_data = MarketDataService()
-    await services.market_data.start()
-    logger.info("✅ MarketDataService started")
+    if HAS_MARKET_DATA:
+        services.market_data = MarketDataService()
+        await services.market_data.start()
+        logger.info("✅ MarketDataService started")
+    else:
+        logger.error("❌ MarketDataService MISSING (Check requirements)")
 
     # 2. Analysis engines
-    services.indicator_engine = IndicatorEngine()
-    services.confluence_engine = ConfluenceEngine()
-    services.chart_analyser = ChartAnalyser()
-    logger.info("✅ Analysis engines initialized")
+    if HAS_ANALYSIS:
+        services.indicator_engine = IndicatorEngine()
+        services.confluence_engine = ConfluenceEngine()
+        services.chart_analyser = ChartAnalyser()
+        logger.info("✅ Analysis engines initialized")
+    else:
+        logger.warning("⚠️ Analysis engines MISSING (pandas-ta issue?)")
 
-    # 3. ML Ensemble
-    services.ensemble = EnsemblePredictor()
-    logger.info("✅ ML EnsemblePredictor initialized (4 models)")
+    # 3. ML Ensemble & Learning
+    if HAS_ML:
+        services.ensemble = EnsemblePredictor()
+        services.online_learner = OnlineLearner()
+        services.mistake_tracker = MistakeTracker()
+        services.performance_tracker = PerformanceTracker()
+        services.performance_tracker.set_balance(10000.0)
+        logger.info("✅ ML & Learning systems initialized")
+    else:
+        logger.warning("⚠️ ML/Learning inputs MISSING (torch/sklearn issue?)")
 
     # 4. Multi-Agent Orchestrator
-    services.orchestrator = Orchestrator()
-    logger.info("✅ Orchestrator initialized (5 agents)")
+    if HAS_AGENTS:
+        services.orchestrator = Orchestrator()
+        logger.info("✅ Orchestrator initialized")
+    else:
+        logger.warning("⚠️ Orchestrator MISSING")
 
     # 5. Signal Generator
-    services.signal_generator = SignalGenerator(
-        account_balance=10000.0,  # TODO: from config/DB
-    )
-    logger.info("✅ SignalGenerator initialized")
+    if HAS_SIGNALS:
+        services.signal_generator = SignalGenerator(
+            account_balance=10000.0,
+        )
+        if BacktestEngine:
+            services.backtest_engine = BacktestEngine()
+        logger.info("✅ SignalGenerator initialized")
 
-    # 6. Learning Loop
-    services.online_learner = OnlineLearner()
-    services.mistake_tracker = MistakeTracker()
-    services.performance_tracker = PerformanceTracker()
-    services.performance_tracker.set_balance(10000.0)
-    logger.info("✅ Learning system initialized")
-
-    # 7. Backtesting engine (on-demand, not continuous)
-    services.backtest_engine = BacktestEngine()
-
-    # 8. Browser scraper (optional)
+    # 6. Browser scraper (optional)
     if HAS_PLAYWRIGHT:
         services.browser_scraper = AutomatedScraper()
         try:
@@ -207,9 +252,12 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("ℹ️ Playwright not installed — browser scraper disabled")
 
-    # 9. Start analysis loop
-    services._analysis_task = asyncio.create_task(_analysis_loop())
-    logger.info("✅ Analysis loop started (60s interval)")
+    # 7. Start analysis loop
+    if services.market_data:
+        services._analysis_task = asyncio.create_task(_analysis_loop())
+        logger.info("✅ Analysis loop started (60s interval)")
+    else:
+        logger.warning("⚠️ Analysis loop SKIPPED (No market data)")
 
     logger.info("=" * 60)
     logger.info("  Kimi Agent v3.0 — READY")
@@ -230,7 +278,8 @@ async def lifespan(app: FastAPI):
     if services.browser_scraper:
         await services.browser_scraper.stop()
 
-    await services.market_data.stop()
+    if services.market_data:
+        await services.market_data.stop()
     logger.info("Kimi Agent stopped.")
 
 

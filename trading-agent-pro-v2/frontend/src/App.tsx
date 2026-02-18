@@ -19,23 +19,27 @@ const queryClient = new QueryClient({
   },
 });
 
+import ErrorBoundary from './components/ErrorBoundary';
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="signals" element={<Signals />} />
-            <Route path="analysis" element={<Analysis />} />
-            <Route path="calendar" element={<Calendar />} />
-            <Route path="monitoring" element={<Monitoring />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="chat" element={<Chat />} />
+              <Route path="signals" element={<Signals />} />
+              <Route path="analysis" element={<Analysis />} />
+              <Route path="calendar" element={<Calendar />} />
+              <Route path="monitoring" element={<Monitoring />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

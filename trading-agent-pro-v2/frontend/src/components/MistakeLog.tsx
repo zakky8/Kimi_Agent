@@ -50,10 +50,10 @@ export default function MistakeLog() {
         refetchInterval: 60000,
     });
 
-    const mistakes: MistakeData = data || {
-        total_mistakes: 0,
-        patterns: [],
-        corrective_actions: [],
+    const mistakes: MistakeData = {
+        total_mistakes: data?.total_mistakes || 0,
+        patterns: data?.patterns || [],
+        corrective_actions: data?.corrective_actions || [],
     };
 
     return (
@@ -64,8 +64,8 @@ export default function MistakeLog() {
                     Mistake Tracker
                 </h2>
                 <span className={`text-xs px-2.5 py-1 rounded-lg font-mono ${mistakes.total_mistakes === 0
-                        ? 'bg-green-500/20 text-green-400'
-                        : 'bg-amber-500/20 text-amber-400'
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'bg-amber-500/20 text-amber-400'
                     }`}>
                     {mistakes.total_mistakes} total
                 </span>
